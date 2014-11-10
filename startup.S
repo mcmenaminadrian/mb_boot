@@ -24,6 +24,11 @@ _vector_sw_exception:
 _vector_interrupt:
 	brai	_interrupt_handler
 
+	.section .vectors.breakpoint, "ax"
+	.align 2
+_vector_breakpoint:
+	brai _handle_breakpoint
+
 	.section .vectors.hw_exception, "ax"
 	.align 2
 _vector_hw_exception:
@@ -50,5 +55,7 @@ _actualstart:
 _handle_exception:
 _interrupt_handler:
 _handle_hwexception:
+_handle_breakpoint:
 	nop
+	bri 0 /*endless loop if it ever works */
 

@@ -1,0 +1,25 @@
+include $(IMPERAS_HOME)/bin/Makefile.include
+
+
+CROSS?=MICROBLAZE
+
+-include $(IMPERAS_HOME)/lib/$(IMPERAS_ARCH)/CrossCompiler/$(CROSS).makefile.include
+ifeq ($($(CROSS)_CC),)
+    IMPERAS_ERROR := $(error "*Please install the $(CROSS) toolchain*")
+endif
+
+ASRC = startup.S
+AEXE = $(patsubst %.S,%.$(CROSS).elf,$(ASRC))
+
+all: $(AEXE)
+
+%.$(CROSS).elf: %.o
+	$(V)  echo "Linking $@"
+	$(V) $(IMPERAS_LINK) -o $@ $< $(IMPERAS_LDFLAGS) -lm
+
+%.o: %.S
+	$(V)  echo "Compiling $<"
+	$(V) $(IMPERAS_AS) -o $@ $<
+
+clean:
+	- rm -f *.elf *.o
