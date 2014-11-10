@@ -29,8 +29,6 @@ _vector_interrupt:
 _vector_hw_exception:
 	brai	_handle_hwexception
 
-	.org 0x100
-
 	.section .text
 	.global _actualstart
 	.align 4
