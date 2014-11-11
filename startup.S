@@ -46,9 +46,22 @@ _actualstart:
 	addi	r8, r0, 0xFFFFFFFF
 	mts	rshr, r8
 
-	nop
-	addik	r3, r0, 0x3F
+				/* Make MMU available */
+	
+
+	addik	r3, r0, 0x3F	/* Microblaze TLB has 64 entries */
+_zeroouttlb:
 	mts	rtlbx, r3
+	mts	rtlbhi, r0
+	mts	rtlblo, r0
+	bgtid	r3, _zeroouttlb	/* Uses delay slot */
+	addik	r3, r3, -1
+
+setkernelpid:
+	mts	rpid, r0
+	nop
+	bri	4		/* sync required */
+	
 
 
 
