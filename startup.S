@@ -41,13 +41,11 @@ _vector_hw_exception:
 	.type _actualstart, @function
 
 _actualstart:
-	mts	rmsr, r0
-	mts	rslr, r0
-	addi	r8, r0, 0xFFFFFFFF
-	mts	rshr, r8
-
-				/* Make MMU available */
-	
+	mfs	r1, rmsr
+	nop
+	ori	r1, r1, 0x00040000
+	mts	rmsr, r1
+	nop
 
 	addik	r3, r0, 0x3F	/* Microblaze TLB has 64 entries */
 _zeroouttlb:
