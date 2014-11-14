@@ -7,7 +7,7 @@ all: $(AEXE)
 
 %.$(CROSS).elf: %.o
 	echo "Linking $@"
-	$(CROSS_COMPILE)ld -T ./bootlink.s -o $@ $<
+	$(CROSS_COMPILE)ld -T ./bootlink.s -o $@ $< 
 
 %.o: %.S
 	echo "Compiling $<"

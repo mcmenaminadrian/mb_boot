@@ -41,13 +41,7 @@ _vector_hw_exception:
 	.type _actualstart, @function
 
 _actualstart:
-	mfs	r1, rmsr
-	nop
-	ori	r1, r1, 0x00040000
-	mts	rmsr, r1
-	nop
-
-	addik	r3, r0, 0x3F	/* Microblaze TLB has 64 entries */
+	addik	r3, r0, 0x3	/* Microblaze TLB has 64 entries */
 _zeroouttlb:
 	mts	rtlbx, r3
 	mts	rtlbhi, r0
@@ -55,14 +49,11 @@ _zeroouttlb:
 	bgtid	r3, _zeroouttlb	/* Uses delay slot */
 	addik	r3, r3, -1
 
-setkernelpid:
+_setkernelpid:
 	mts	rpid, r0
 	nop
 	bri	4		/* sync required */
 	
-
-
-
 _handle_exception:
 _interrupt_handler:
 _handle_hwexception:
