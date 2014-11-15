@@ -34,6 +34,7 @@ _vector_breakpoint:
 _vector_hw_exception:
 	brai	_handle_hwexception
 
+	.org 0x100
 	.section .text
 	.global _actualstart
 	.align 4
@@ -41,7 +42,7 @@ _vector_hw_exception:
 	.type _actualstart, @function
 
 _actualstart:
-	addik	r3, r0, 0x3	/* Microblaze TLB has 64 entries */
+	addik	r3, r0, 0x2	/* Microblaze TLB has 64 entries */
 _zeroouttlb:
 	mts	rtlbx, r3
 	mts	rtlbhi, r0
@@ -53,7 +54,24 @@ _setkernelpid:
 	mts	rpid, r0
 	nop
 	bri	4		/* sync required */
-	
+
+	/* setup TLB0 */
+	ori	r11, r0, 0x0000
+	mts	rtlbx, r11
+	ori	r4, r0, 0x00
+	ori	r4, r4, 0x0300
+	mts	rtlblo, r4
+
+	ori	r4, r0, 0x00
+	ori	r4, r0, 0x02C0
+	mts	rtlbhi, r4
+
+	mfs	r4, rmsr
+	nop
+	ori	r4, r0, 0x2000
+	mts	rmsr, r4
+	nop
+
 _handle_exception:
 _interrupt_handler:
 _handle_hwexception:
