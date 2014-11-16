@@ -128,11 +128,18 @@ tlb_loop:
 	sw	r21, r12, r0
 	mfs	r21, rtlblo
 	swi	r21, r12, 0x04
+	addik	r20, r20, 0x01
 	braid	tlb_loop
 	add	r12, r12, r19
 
-finished_tlp_loop:
+finished_tlb_loop:
 	nop
+/* cheeky switch back to real mode */
+	mfs	r4, rmsr
+	nop
+	andni	r4, r4, 0x2000
+	mts	rmsr, r4
+	nop	
 
 _handle_exception:
 _interrupt_handler:
