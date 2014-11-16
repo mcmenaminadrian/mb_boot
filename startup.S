@@ -42,7 +42,7 @@ _vector_hw_exception:
 	.type _actualstart, @function
 
 _actualstart:
-	addik	r3, r0, 0x2	/* Microblaze TLB has 64 entries */
+	addik	r3, r0, 0x3F	/* Microblaze TLB has 64 entries */
 _zeroouttlb:
 	mts	rtlbx, r3
 	mts	rtlbhi, r0
@@ -66,11 +66,54 @@ _setkernelpid:
 	ori	r4, r0, 0x02C0
 	mts	rtlbhi, r4
 
+	/* setup TLB1 - page table space */
+	ori	r11, r0, 0x01
+	mts	rtlbx, r11
+	ori	r4, r0, 0x200000
+	ori	r4, r4,	0x0300
+	mts	rtlblo, r4
+
+	ori	r4, r0, 0x300000
+	ori	r4, r4, 0x02C0
+	mts	rtlbhi, r4
+
+	/* Turn on VM */
 	mfs	r4, rmsr
 	nop
 	ori	r4, r0, 0x2000
 	mts	rmsr, r4
 	nop
+
+	/* Populate page table */
+	/* Zero the memory first of all */
+	ori	r11, r0, 0x80
+	ori	r12, r0, 0x300000
+	ori	r19, r0, 0x0C
+	ori	r20, r0, 0x00
+	
+outer_zero_loop:
+	addik	r11, r11, -1
+	beqid	r11, finished_zero_loop
+	nop
+
+inner_zero_loop:
+	sw	r0, r12, r20
+	addik	r20, r20, 0x04
+	rsub	r21, r20, r19
+	bltid	r21, end_inner_zero_loop
+	nop
+	braid	inner_zero_loop
+	nop
+
+end_inner_zero_loop:
+	add	r12, r12, r19
+	braid	outer_zero_loop
+	ori	r20, r0, 0x00	
+
+finished_zero_loop:
+	nop		
+
+	
 
 _handle_exception:
 _interrupt_handler:
