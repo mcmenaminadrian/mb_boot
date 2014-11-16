@@ -88,7 +88,7 @@ _setkernelpid:
 	/* Zero the memory first of all */
 	ori	r11, r0, 0x80
 	ori	r12, r0, 0x300000
-	ori	r19, r0, 0x0C
+	ori	r19, r0, 0x08
 	ori	r20, r0, 0x00
 	
 outer_zero_loop:
@@ -113,7 +113,26 @@ end_inner_zero_loop:
 finished_zero_loop:
 	nop		
 
-	
+/* Copy TLB entries */
+
+	ori	r11, r0, 0x40
+	ori	r12, r0, 0x300000
+	ori	r19, r0, 0x08
+	ori	r20, r0, 0x00
+
+tlb_loop:
+	addik	r11, r11, -1
+	beqid	r11, finished_tlb_loop
+	mts	rtlbx, r20
+	mfs	r21, rtlbhi
+	sw	r21, r12, r0
+	mfs	r21, rtlblo
+	swi	r21, r12, 0x04
+	braid	tlb_loop
+	add	r12, r12, r19
+
+finished_tlp_loop:
+	nop
 
 _handle_exception:
 _interrupt_handler:
