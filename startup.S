@@ -113,7 +113,7 @@ end_inner_zero_loop:
 finished_zero_loop:
 	nop		
 
-/* Copy TLB entries */
+	/* Copy TLB entries */
 
 	ori	r11, r0, 0x40
 	ori	r12, r0, 0x300000
@@ -134,17 +134,30 @@ tlb_loop:
 
 finished_tlb_loop:
 	nop
-/* cheeky switch back to real mode */
+/* cheeky switch back to real mode 
 	mfs	r4, rmsr
 	nop
 	andni	r4, r4, 0x2000
-	mts	rmsr, r4
-	nop	
+	mts	rmsr, r4 */
+	nop
+	ori	r20, r0, 0
+	ori	r12, r0, 0x1000000
+	/* next line should break it */
+	sw	r20, r12, r0
 
-_handle_exception:
+
 _interrupt_handler:
+	ori	r20, r0, 0x01
+	bri	0
 _handle_hwexception:
+	ori	r20, r0, 0x02
+	bri	0
 _handle_breakpoint:
+	ori	r20, r0, 0x10
 	nop
 	bri 0 /*endless loop if it ever works */
 
+_handle_exception:
+	/* We are now back in real mode */
+	ori	r20, r0, 0x03
+	bri	0
