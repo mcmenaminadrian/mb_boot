@@ -17,7 +17,7 @@ _start:
 	.section .vectors.sw_exception, "ax"
 	.align 2
 _vector_sw_exception:
-	brai	_handle_exception
+	brai	_exception_handler
 
 	.section .vectors.interrupt, "ax"
 	.align 2
@@ -32,7 +32,7 @@ _vector_breakpoint:
 	.section .vectors.hw_exception, "ax"
 	.align 2
 _vector_hw_exception:
-	brai	_handle_hwexception
+	brai	_hw_exception_handler
 
 	.org 0x100
 	.section .text
@@ -80,7 +80,7 @@ _setkernelpid:
 	/* Turn on VM */
 	mfs	r4, rmsr
 	nop
-	ori	r4, r0, 0x2000
+	ori	r4, r0, 0x2502
 	mts	rmsr, r4
 	nop
 
@@ -134,22 +134,26 @@ tlb_loop:
 
 finished_tlb_loop:
 	nop
+	mts rtlbx, r0
+
 /* cheeky switch back to real mode 
 	mfs	r4, rmsr
 	nop
 	andni	r4, r4, 0x2000
-	mts	rmsr, r4 */
+	mts	rmsr, r4 
+*/
 	nop
 	ori	r20, r0, 0
-	ori	r12, r0, 0x1000000
+	ori	r12, r0, 0x200000
 	/* next line should break it */
 	sw	r20, r12, r0
 
+	.end	_actualstart
 
 _interrupt_handler:
 	ori	r20, r0, 0x01
 	bri	0
-_handle_hwexception:
+_hw_exception_handler:
 	ori	r20, r0, 0x02
 	bri	0
 _handle_breakpoint:
@@ -157,7 +161,7 @@ _handle_breakpoint:
 	nop
 	bri 0 /*endless loop if it ever works */
 
-_handle_exception:
+_exception_handler:
 	/* We are now back in real mode */
 	ori	r20, r0, 0x03
 	bri	0
