@@ -3,6 +3,10 @@
 	Licensed under GPL v3
 */
 
+	.macro switchex
+	addi	r5, r5, 0x01
+	rsub	r6, r5, r4
+	.endm	
 
 	.global _start
 	.section .vectors.reset, "ax"
@@ -153,9 +157,63 @@ finished_tlb_loop:
 _interrupt_handler:
 	ori	r20, r0, 0x01
 	bri	0
+
+
 _hw_exception_handler:
-	ori	r20, r0, 0x02
-	bri	0
+	mfs	r3, resr
+	andi	r4, r3, 0x1F
+	or	r5, r0, r0
+	rsub	r6, r5, r4
+	beqi	r6, handle_stream_exception
+	switchex
+	beqi	r6, handle_unaligned_data_exception
+	switchex
+	beqi	r6, handle_illegal_opcode
+	switchex
+	beqi	r6, handle_ibus_error
+	switchex
+	beqi	r6, handle_dbus_error
+	switchex
+	beqi	r6, handle_divide_error
+	switchex
+	beqi	r6, handle_fp_error
+	switchex
+	beqi	r6, handle_priv_or_stack_error
+	addi	r5, r5, 0x09
+	rsub	r6, r5, r4	
+	beqid	r6, handle_datastore_error
+	switchex
+	beqid	r6, handle_inststore_error
+	switchex
+	beqid	r6, handle_datatlb_miss
+	switchex
+	beqid	r6, handle_insttlb_miss
+	nop
+	/* should never get here */
+	bri 0	
+
+handle_stream_exception:
+handle_unaligned_data_exception:
+handle_illegal_opcode:
+handle_ibus_error:
+handle_dbus_error:
+handle_divide_error:
+handle_fp_error:
+handle_priv_or_stack_error:
+
+	bri 0
+
+handle_datastore_error:
+handle_inststore_error:
+	bri 0
+
+handle_datatlb_miss:
+
+	bri 0
+
+handle_insttlb_miss:
+	bri 0
+
 _handle_breakpoint:
 	ori	r20, r0, 0x10
 	nop
