@@ -3,6 +3,9 @@
 	Licensed under GPL v3
 */
 
+#define PTECNT	0x80
+#define TLBCNT	0x40
+
 	.macro switchex
 	addi	r5, r5, 0x01
 	rsub	r6, r5, r4
@@ -46,7 +49,7 @@ _vector_hw_exception:
 	.type _actualstart, @function
 
 _actualstart:
-	addik	r3, r0, 0x3F	/* Microblaze TLB has 64 entries */
+	addik	r3, r0, TLBCNT - 1
 _zeroouttlb:
 	mts	rtlbx, r3
 	mts	rtlbhi, r0
@@ -90,7 +93,7 @@ _setkernelpid:
 
 	/* Populate page table */
 	/* Zero the memory first of all */
-	ori	r11, r0, 0x80
+	ori	r11, r0, PTECNT
 	ori	r12, r0, 0x300000
 	ori	r19, r0, 0x08
 	ori	r20, r0, 0x00
@@ -119,7 +122,7 @@ finished_zero_loop:
 
 	/* Copy TLB entries */
 
-	ori	r11, r0, 0x40
+	ori	r11, r0, TLBCNT
 	ori	r12, r0, 0x300000
 	ori	r19, r0, 0x08
 	ori	r20, r0, 0x00
@@ -208,7 +211,58 @@ handle_inststore_error:
 	bri 0
 
 handle_datatlb_miss:
+	/* scan through page table to see if we have address 	*/
+	/* ignoring pinned ptes 0 and 1				*/
+	ori	r20, r0, 2
+	ori	r21, r0, 0x20000A 	/* real mode into page table TAG */
+load_PTE:
+	lw	r22, r21		/* load page address 		*/
+	andi	r23, r22, 0x00000040	/* is it valid?			*/
+	bneqi	r23, next_PTE
+	andi	r23, r22, 0xFFFFFC00	/* mask address 		*/
+	mfs	r24, rear
+	andi	r24, r24, 0xFFFFF000	/* will always be 4k pages here	*/
+	rsub	r25, r24, r23
+	bneqi	r25, next_PTE
+	/* now have match with r23 holding page and r20 index to PTEs */
+	/* so task is now to load this into TLB */
+	or	r3, r23, r23
+	or	r4, r20, r20
+	brai	load_TLB
 
+next_PTE:
+	addi	r20, r20, 0x01
+	rsubi	r23, r20, PTECNT + 1
+	beqi	r23, no_PTE_match
+	brad	load_PTE
+	addi	r21, r21, 0x08
+
+	/* similar code to load_PTE except now we are looking for 	*/
+	/* an invalid entry we can fill in				*/
+no_PTE_match:
+	ori	r20, r0, 2
+	ori	r21, r0, 0x20000A
+next_PTE:
+	lw	r22, r21
+	andi	r23, r22, 0x00000040
+	beqi	r23, found_invalid_PTE
+	addi	r20, r20, 0x01
+	rsubi	r23, r20, PTECNT + 1
+	beqi	r23, still_no_PTE_match
+	brad	next_PTE
+	addi	r21, r21, 0x08
+
+found_invalid_PTE:
+	or	r4, r20, r20
+	mfs	r3, rear
+	andi	r3, r3, 0xFFFFF000
+	brai	load_TLB
+
+still_no_PTE_match:
+	
+	bri 0
+
+load_TLB:
 	bri 0
 
 handle_insttlb_miss:
