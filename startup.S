@@ -215,6 +215,8 @@ handle_datatlb_miss:
 	/* ignoring pinned ptes 0 and 1				*/
 	ori	r20, r0, 2
 	ori	r21, r0, 0x20000A 	/* real mode into page table TAG */
+
+
 load_PTE:
 	lw	r22, r21		/* load page address 		*/
 	andi	r23, r22, 0x00000040	/* is it valid?			*/
@@ -260,9 +262,6 @@ found_invalid_PTE:
 
 still_no_PTE_match:
 	
-	bri 0
-
-load_TLB:
 	bri 0
 
 handle_insttlb_miss:
