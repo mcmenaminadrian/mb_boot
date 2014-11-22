@@ -244,14 +244,14 @@ next_PTE:
 no_PTE_match:
 	ori	r20, r0, 2
 	ori	r21, r0, 0x20000A
-next_PTE:
+advance_PTE:
 	lw	r22, r21
 	andi	r23, r22, 0x00000040
 	beqi	r23, found_invalid_PTE
 	addi	r20, r20, 0x01
 	rsubi	r23, r20, PTECNT + 1
 	beqi	r23, still_no_PTE_match
-	brad	next_PTE
+	brad	advance_PTE
 	addi	r21, r21, 0x08
 
 found_invalid_PTE:
