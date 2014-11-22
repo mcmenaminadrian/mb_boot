@@ -143,12 +143,6 @@ finished_tlb_loop:
 	nop
 	mts rtlbx, r0
 
-/* cheeky switch back to real mode 
-	mfs	r4, rmsr
-	nop
-	andni	r4, r4, 0x2000
-	mts	rmsr, r4 
-*/
 	nop
 	ori	r20, r0, 0
 	ori	r12, r0, 0x200000
@@ -211,15 +205,15 @@ handle_inststore_error:
 	bri 0
 
 handle_datatlb_miss:
-	/* scan through page table to see if we have address 	*/
-	/* ignoring pinned ptes 0 and 1				*/
+	/* scan through page table to see if we have address */
+	/* ignoring pinned ptes 0 and 1 */
 	ori	r20, r0, 2
-	ori	r21, r0, 0x20000A 	/* real mode into page table TAG */
-
+	/* real mode into page table TAG */
+	ori	r21, r0, 0x20000A
 
 load_PTE:
-	lw	r22, r21		/* load page address 		*/
-	andi	r23, r22, 0x00000040	/* is it valid?			*/
+	lw	r22, r21		/* load page address */
+	andi	r23, r22, 0x00000040	/* is it valid? */
 	bneqi	r23, next_PTE
 	andi	r23, r22, 0xFFFFFC00	/* mask address 		*/
 	mfs	r24, rear
