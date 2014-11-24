@@ -149,8 +149,6 @@ finished_tlb_loop:
 	/* next line should break it */
 	sw	r20, r12, r0
 
-	.end	_actualstart
-
 _interrupt_handler:
 	ori	r20, r0, 0x01
 	bri	0
@@ -187,7 +185,7 @@ _hw_exception_handler:
 	beqid	r6, handle_insttlb_miss
 	nop
 	/* should never get here */
-	bri 0	
+	bri 0
 
 handle_stream_exception:
 handle_unaligned_data_exception:
@@ -205,21 +203,20 @@ handle_inststore_error:
 	bri 0
 
 handle_datatlb_miss:
-	/* scan through page table to see if we have address */
 	/* ignoring pinned ptes 0 and 1 */
 	ori	r20, r0, 2
 	/* real mode into page table TAG */
 	ori	r21, r0, 0x20000A
 
 load_PTE:
-	lw	r22, r21		/* load page address */
+	lw	r22, r21, r0		/* load page address */
 	andi	r23, r22, 0x00000040	/* is it valid? */
-	bneqi	r23, next_PTE
+	bnei	r23, next_PTE
 	andi	r23, r22, 0xFFFFFC00	/* mask address 		*/
 	mfs	r24, rear
 	andi	r24, r24, 0xFFFFF000	/* will always be 4k pages here	*/
 	rsub	r25, r24, r23
-	bneqi	r25, next_PTE
+	bnei	r25, next_PTE
 	/* now have match with r23 holding page and r20 index to PTEs */
 	/* so task is now to load this into TLB */
 	or	r3, r23, r23
@@ -239,7 +236,7 @@ no_PTE_match:
 	ori	r20, r0, 2
 	ori	r21, r0, 0x20000A
 advance_PTE:
-	lw	r22, r21
+	lw	r22, r21, r0
 	andi	r23, r22, 0x00000040
 	beqi	r23, found_invalid_PTE
 	addi	r20, r20, 0x01
