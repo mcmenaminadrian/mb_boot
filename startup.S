@@ -227,7 +227,7 @@ next_PTE:
 	addi	r20, r20, 0x01
 	rsubi	r23, r20, PTECNT + 1
 	beqi	r23, no_PTE_match
-	brad	load_PTE
+	braid	load_PTE
 	addi	r21, r21, 0x08
 
 	/* similar code to load_PTE except now we are looking for 	*/
@@ -242,7 +242,7 @@ advance_PTE:
 	addi	r20, r20, 0x01
 	rsubi	r23, r20, PTECNT + 1
 	beqi	r23, still_no_PTE_match
-	brad	advance_PTE
+	braid	advance_PTE
 	addi	r21, r21, 0x08
 
 found_invalid_PTE:
