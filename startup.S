@@ -3,7 +3,9 @@
 	Licensed under GPL v3
 */
 
-#define PTECNT	0x80
+.macro PTECNT
+	0x80
+.endm
 #define TLBCNT	0x40
 
 	.macro switchex
