@@ -3,9 +3,7 @@
 	Licensed under GPL v3
 */
 
-.macro PTECNT
-	0x80
-.endm
+#define PTECNT 0x80
 #define TLBCNT	0x40
 
 	.macro switchex
@@ -124,28 +122,39 @@ finished_zero_loop:
 
 	/* Copy TLB entries */
 
-	ori	r11, r0, TLBCNT
+	ori	r11, r0, PTECNT
 	ori	r12, r0, 0x300000
 	ori	r19, r0, 0x08
 	ori	r20, r0, 0x00
 
-tlb_loop:
-	addik	r11, r11, -1
-	beqid	r11, finished_tlb_loop
+/* We work on the basis we have (PTECNT - 2) 4k frames */
+/* In physical addresses from 0x500000 onwards */
+/* First two entries first */
 	mts	rtlbx, r20
-	mfs	r21, rtlbhi
-	sw	r21, r12, r0
 	mfs	r21, rtlblo
+	sw	r21, r12, r0
+	mfs	r21, rtlbhi
 	swi	r21, r12, 0x04
 	addik	r20, r20, 0x01
-	braid	tlb_loop
+	mts	rtlbx, r20
+	mfs	r21, rtlblo
+	sw	r21, r12, r0
+	mfs	r21, rtlbhi
+	swi	r21, r12, 0x04
+	addik	r20, r20, 0x01
+	addik	r11, r11, -2
+	ori	r21, r0, 0x500300
+
+pte_loop:
+	addik	r11, r11, -1
+	beqid	r11, finished_pte_loop
+	sw	r21, r12, r0
+	addik	r21, r21, 0x1000
+	braid	pte_loop
 	add	r12, r12, r19
 
-finished_tlb_loop:
-	nop
-	mts rtlbx, r0
-
-	nop
+finished_pte_loop:
+	/* now write to an unmapped address */
 	ori	r20, r0, 0
 	ori	r12, r0, 0x200000
 	/* next line should break it */
@@ -251,6 +260,17 @@ found_invalid_PTE:
 	or	r4, r20, r20
 	mfs	r3, rear
 	andi	r3, r3, 0xFFFFF000
+	/* insert the mapping in the PTE */
+	/* r21 has the address we want to write to */
+	/* make the mapping valid and correct size*/
+ 	or	r19, r3, r0
+	ori	r19, r19, 0x300
+	sw	r19, r21, r0
+	lwi	r19, r21, -4
+	ori	r19, r19, 0xC0
+	swi	r19, r21, -4
+
+	
 	brai	load_TLB
 
 still_no_PTE_match:
