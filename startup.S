@@ -3,8 +3,21 @@
 	Licensed under GPL v3
 */
 
-#define PTECNT 0x80
-#define TLBCNT	0x40
+	.set PTECNT, 0x80
+	.set TLBCNT, 0x40
+	.set EX, 0x200
+	.set WR, 0x100
+	.set VALID, 0x40
+	.set PAGE4K, 0x080
+	.set PAGE4KMASK, 0xFFFFF000
+	.set PAGE1M, 0x280
+	.set PTE_SIZE, 0x08
+	.set PTE_SIZE_HALF, 0x04
+	.set SECOND_MAP_PHYS, 0x200000
+	.set SECOND_MAP_VIRT, 0x300000
+	.set VIRT_BASE, 0x500000
+	.set VM_ON, 0x2502
+	.set PAGE_SZ, 0x1000
 
 	.macro switchex
 	addi	r5, r5, 0x01
@@ -66,36 +79,36 @@ _setkernelpid:
 	ori	r11, r0, 0x0000
 	mts	rtlbx, r11
 	ori	r4, r0, 0x00
-	ori	r4, r4, 0x0300
+	ori	r4, r4, EX|WR
 	mts	rtlblo, r4
 
 	ori	r4, r0, 0x00
-	ori	r4, r0, 0x02C0
+	ori	r4, r0, VALID|PAGE1M 
 	mts	rtlbhi, r4
 
 	/* setup TLB1 - page table space */
 	ori	r11, r0, 0x01
 	mts	rtlbx, r11
-	ori	r4, r0, 0x200000
-	ori	r4, r4,	0x0300
+	ori	r4, r0, SECOND_MAP_PHYS
+	ori	r4, r4,	EX|WR
 	mts	rtlblo, r4
 
-	ori	r4, r0, 0x300000
-	ori	r4, r4, 0x02C0
+	ori	r4, r0, SECOND_MAP_VIRT
+	ori	r4, r4, VALID|PAGE4K
 	mts	rtlbhi, r4
 
 	/* Turn on VM */
 	mfs	r4, rmsr
 	nop
-	ori	r4, r0, 0x2502
+	ori	r4, r0, VM_ON 
 	mts	rmsr, r4
 	nop
 
 	/* Populate page table */
 	/* Zero the memory first of all */
 	ori	r11, r0, PTECNT
-	ori	r12, r0, 0x300000
-	ori	r19, r0, 0x08
+	ori	r12, r0, SECOND_MAP_VIRT
+	ori	r19, r0, PTE_SIZE 
 	ori	r20, r0, 0x00
 	
 outer_zero_loop:
@@ -105,7 +118,7 @@ outer_zero_loop:
 
 inner_zero_loop:
 	sw	r0, r12, r20
-	addik	r20, r20, 0x04
+	addik	r20, r20, PTE_SIZE_HALF 
 	rsub	r21, r20, r19
 	bltid	r21, end_inner_zero_loop
 	nop
@@ -123,8 +136,8 @@ finished_zero_loop:
 	/* Copy TLB entries */
 
 	ori	r11, r0, PTECNT
-	ori	r12, r0, 0x300000
-	ori	r19, r0, 0x08
+	ori	r12, r0, SECOND_MAP_VIRT 
+	ori	r19, r0, PTE_SIZE
 	ori	r20, r0, 0x00
 
 /* We work on the basis we have (PTECNT - 2) 4k frames */
@@ -134,22 +147,22 @@ finished_zero_loop:
 	mfs	r21, rtlblo
 	sw	r21, r12, r0
 	mfs	r21, rtlbhi
-	swi	r21, r12, 0x04
+	swi	r21, r12, PTE_SIZE_HALF
 	addik	r20, r20, 0x01
 	mts	rtlbx, r20
 	mfs	r21, rtlblo
 	sw	r21, r12, r0
 	mfs	r21, rtlbhi
-	swi	r21, r12, 0x04
+	swi	r21, r12, PTE_SIZE_HALF
 	addik	r20, r20, 0x01
 	addik	r11, r11, -2
-	ori	r21, r0, 0x500300
+	ori	r21, r0, VIRT_BASE|WR|EX
 
 pte_loop:
 	addik	r11, r11, -1
 	beqid	r11, finished_pte_loop
 	sw	r21, r12, r0
-	addik	r21, r21, 0x1000
+	addik	r21, r21, PAGE_SZ 
 	braid	pte_loop
 	add	r12, r12, r19
 
@@ -217,15 +230,15 @@ handle_datatlb_miss:
 	/* ignoring pinned ptes 0 and 1 */
 	ori	r20, r0, 2
 	/* real mode into page table TAG */
-	ori	r21, r0, 0x20000A
+	ori	r21, r0, SECOND_MAP_PHYS + 0x0A
 
 load_PTE:
 	lw	r22, r21, r0		/* load page address */
-	andi	r23, r22, 0x00000040	/* is it valid? */
+	andi	r23, r22, VALID		/* is it valid? */
 	bnei	r23, next_PTE
-	andi	r23, r22, 0xFFFFFC00	/* mask address 		*/
+	andi	r23, r22, PAGE4KMASK	/* mask address 		*/
 	mfs	r24, rear
-	andi	r24, r24, 0xFFFFF000	/* will always be 4k pages here	*/
+	andi	r24, r24, PAGE4KMASK 	/* will always be 4k pages here	*/
 	rsub	r25, r24, r23
 	bnei	r25, next_PTE
 	/* now have match with r23 holding page and r20 index to PTEs */
@@ -239,36 +252,36 @@ next_PTE:
 	rsubi	r23, r20, PTECNT + 1
 	beqi	r23, no_PTE_match
 	braid	load_PTE
-	addi	r21, r21, 0x08
+	addi	r21, r21, PTE_SIZE
 
 	/* similar code to load_PTE except now we are looking for 	*/
 	/* an invalid entry we can fill in				*/
 no_PTE_match:
 	ori	r20, r0, 2
-	ori	r21, r0, 0x20000A
+	ori	r21, r0, SECOND_MAP_PHYS + 0x0A
 advance_PTE:
 	lw	r22, r21, r0
-	andi	r23, r22, 0x00000040
+	andi	r23, r22, VALID
 	beqi	r23, found_invalid_PTE
 	addi	r20, r20, 0x01
 	rsubi	r23, r20, PTECNT + 1
 	beqi	r23, still_no_PTE_match
 	braid	advance_PTE
-	addi	r21, r21, 0x08
+	addi	r21, r21, PTE_SIZE
 
 found_invalid_PTE:
 	or	r4, r20, r20
 	mfs	r3, rear
-	andi	r3, r3, 0xFFFFF000
+	andi	r3, r3, PAGE4KMASK
 	/* insert the mapping in the PTE */
 	/* r21 has the address we want to write to */
 	/* make the mapping valid and correct size*/
  	or	r19, r3, r0
-	ori	r19, r19, 0x300
+	ori	r19, r19, WR|EX
 	sw	r19, r21, r0
-	lwi	r19, r21, -4
-	ori	r19, r19, 0xC0
-	swi	r19, r21, -4
+	lwi	r19, r21, -PTE_SIZE_HALF
+	ori	r19, r19, VALID|PAGE4K
+	swi	r19, r21, -PTE_SIZE_HALF
 
 	
 	brai	load_TLB
