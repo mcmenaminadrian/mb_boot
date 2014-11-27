@@ -15,7 +15,7 @@
 	.set PTE_SIZE_HALF, 0x04
 	.set SECOND_MAP_PHYS, 0x200000
 	.set SECOND_MAP_VIRT, 0x300000
-	.set VIRT_BASE, 0x500000
+	.set FRAME_BASE, 0x500000
 	.set VM_ON, 0x2502
 	.set PAGE_SZ, 0x1000
 
@@ -97,7 +97,7 @@ _setkernelpid:
 	ori	r4, r4, VALID|PAGE4K
 	mts	rtlbhi, r4
 
-	/* Turn on VM */
+turn_on_vm:
 	mfs	r4, rmsr
 	nop
 	ori	r4, r0, VM_ON 
@@ -133,8 +133,7 @@ end_inner_zero_loop:
 finished_zero_loop:
 	nop		
 
-	/* Copy TLB entries */
-
+prep_ptes:
 	ori	r11, r0, PTECNT
 	ori	r12, r0, SECOND_MAP_VIRT 
 	ori	r19, r0, PTE_SIZE
@@ -156,7 +155,7 @@ finished_zero_loop:
 	swi	r21, r12, PTE_SIZE_HALF
 	addik	r20, r20, 0x01
 	addik	r11, r11, -2
-	ori	r21, r0, VIRT_BASE|WR|EX
+	ori	r21, r0, FRAME_BASE|WR|EX
 
 pte_loop:
 	addik	r11, r11, -1
@@ -230,12 +229,12 @@ handle_datatlb_miss:
 	/* ignoring pinned ptes 0 and 1 */
 	ori	r20, r0, 2
 	/* real mode into page table TAG */
-	ori	r21, r0, SECOND_MAP_PHYS + 0x0A
+	ori	r21, r0, SECOND_MAP_PHYS + 0x0C
 
 load_PTE:
 	lw	r22, r21, r0		/* load page address */
 	andi	r23, r22, VALID		/* is it valid? */
-	bnei	r23, next_PTE
+	beqi	r23, next_PTE
 	andi	r23, r22, PAGE4KMASK	/* mask address 		*/
 	mfs	r24, rear
 	andi	r24, r24, PAGE4KMASK 	/* will always be 4k pages here	*/
@@ -243,8 +242,6 @@ load_PTE:
 	bnei	r25, next_PTE
 	/* now have match with r23 holding page and r20 index to PTEs */
 	/* so task is now to load this into TLB */
-	or	r3, r23, r23
-	or	r4, r20, r20
 	brai	load_TLB
 
 next_PTE:
@@ -258,7 +255,7 @@ next_PTE:
 	/* an invalid entry we can fill in				*/
 no_PTE_match:
 	ori	r20, r0, 2
-	ori	r21, r0, SECOND_MAP_PHYS + 0x0A
+	ori	r21, r0, SECOND_MAP_PHYS + 0x0C
 advance_PTE:
 	lw	r22, r21, r0
 	andi	r23, r22, VALID
@@ -282,7 +279,6 @@ found_invalid_PTE:
 	lwi	r19, r21, -PTE_SIZE_HALF
 	ori	r19, r19, VALID|PAGE4K
 	swi	r19, r21, -PTE_SIZE_HALF
-
 	
 	brai	load_TLB
 
@@ -302,3 +298,38 @@ _exception_handler:
 	/* We are now back in real mode */
 	ori	r20, r0, 0x03
 	bri	0
+
+/* Get here with r23 holding page address and r20 index to PTE */
+/* While r21 points to high mapping */
+/* We know there is no valid TLB entry that matches */
+/* We are not writing OS code so no need to get fancy */
+load_TLB:
+	/* Look through the TLB entries for an invalid entry */
+	addik	r3, r0, 2
+scantlb:
+	mts	rtlbx, r3
+	mfs	r24, rtlbhi
+	andi	r25, r24, VALID
+	beqi	r25, found_invalid_tlb
+	addik	r3, r0, 1
+	rsubi	r25, r3, TLBCNT
+	beqi	r25, no_invalid_tlb
+	brai	scantlb
+
+found_invalid_tlb:
+	/* set up tlblo first */
+	muli	r24, r20, PTE_SIZE
+	addi	r24, r24, SECOND_MAP_PHYS
+	lw	r25, r0, r24
+	andi	r25, r25, PAGE4KMASK
+	ori	r25, r25, EX|WR
+	mts	rtlblo, r25
+	andi	r23, r23, PAGE4KMASK
+	ori	r23, r23, VALID|PAGE4K
+	rted	r17, 0x0
+	mts	rtlbhi, r23
+	nop
+
+no_invalid_tlb:
+	bri	0
+
