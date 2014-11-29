@@ -17,8 +17,9 @@
 	.set PTE_SIZE_HALF, 0x04
 	.set SECOND_MAP_PHYS, 0x200000
 	.set SECOND_MAP_VIRT, 0x300000
-	.set STACK_MAP_PHYS, 0xFFFEFFFF
-	.set STACK_MAP_VIRT, 0xFFFEFFFF
+	.set STACK_MAP_PHYS, 0xFFFE0000
+	.set STACK_MAP_VIRT, 0xFFFE0000
+	.set STACK_BOTTOM, 0xFFFFFFFF
 	.set FRAME_BASE, 0x500000
 	.set VM_ON, 0x2502
 	.set PAGE_SZ, 0x1000
@@ -117,12 +118,12 @@ _setkernelpid:
 	mts	rtlbhi, r4
 
 	/* set stack pointer registers */
-	ori	r4, r0, 0xFFFFFFFF
+	ori	r4, r0, STACK_MAP_VIRT
 	mts	rslr, r4
-	ori	r4, r0, 0xFFFEFFFF
+	ori	r4, r0, STACK_BOTTOM 
 	mts	rshr, r4
 	/* set r1 as stack pointer */
-	ori	r1, r0, 0xFFFFFFFF
+	ori	r1, r0, STACK_BOTTOM
 
 turn_on_vm:
 	mfs	r4, rmsr
