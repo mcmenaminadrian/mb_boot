@@ -265,7 +265,7 @@ handle_datatlb_miss:
 	/* real mode into page table TAG */
 	ori	r21, r0, SECOND_MAP_PHYS + 0x0C
 
-	ori	r26, r0, r0	/* will store first invalid PTE index */
+	or	r26, r0, r0	/* will store first invalid PTE index */
 	mfs	r24, rear
 	andi	r24, r24, PAGE4KMASK	/* always 4k pages */
 load_PTE:
@@ -276,7 +276,7 @@ load_PTE:
 	andi	r25, r22, VALID
 	addk	r25, r25, r26
 	bnei	r25, next_PTE
-	ori	r26, r0, r20
+	or	r26, r0, r20
 
 next_PTE:
 	addi	r20, r20, 0x01
