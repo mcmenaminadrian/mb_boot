@@ -9,12 +9,16 @@
 	.set WR, 0x100
 	.set VALID, 0x40
 	.set PAGE4K, 0x080
+	.set PAGE64K, 0x180
 	.set PAGE4KMASK, 0xFFFFF000
+	.set PAGE64KMASK, 0xFFFF0000
 	.set PAGE1M, 0x280
 	.set PTE_SIZE, 0x08
 	.set PTE_SIZE_HALF, 0x04
 	.set SECOND_MAP_PHYS, 0x200000
 	.set SECOND_MAP_VIRT, 0x300000
+	.set STACK_MAP_PHYS, 0xFFFEFFFF
+	.set STACK_MAP_VIRT, 0xFFFEFFFF
 	.set FRAME_BASE, 0x500000
 	.set VM_ON, 0x2502
 	.set PAGE_SZ, 0x1000
@@ -76,6 +80,7 @@ _setkernelpid:
 	bri	4		/* sync required */
 
 	/* setup TLB0 */
+	/* 1 <-> mapping for 1MB page at 0x00 */
 	ori	r11, r0, 0x0000
 	mts	rtlbx, r11
 	ori	r4, r0, 0x00
@@ -87,6 +92,7 @@ _setkernelpid:
 	mts	rtlbhi, r4
 
 	/* setup TLB1 - page table space */
+	/* maps SECOND_MAP_PHYS <-> SECOND_MAP_VERT for 4k */
 	ori	r11, r0, 0x01
 	mts	rtlbx, r11
 	ori	r4, r0, SECOND_MAP_PHYS
@@ -96,6 +102,27 @@ _setkernelpid:
 	ori	r4, r0, SECOND_MAP_VIRT
 	ori	r4, r4, VALID|PAGE4K
 	mts	rtlbhi, r4
+
+	/* setup TLB2 - 64K stack */
+	ori	r11, r0, 0x02
+	mts	rtlbx, r11
+	ori	r4, r0, STACK_MAP_PHYS
+	andi	r4, r4, PAGE64KMASK
+	ori	r4, r4, WR
+	mts	rtlblo, r4
+
+	ori	r4, r0, STACK_MAP_VIRT
+	andi	r4, r4, PAGE64KMASK
+	ori	r4, r4, VALID|PAGE64K
+	mts	rtlbhi, r4
+
+	/* set stack pointer registers */
+	ori	r4, r0, 0xFFFFFFFF
+	mts	rslr, r4
+	ori	r4, r0, 0xFFFEFFFF
+	mts	rshr, r4
+	/* set r1 as stack pointer */
+	ori	r1, r0, 0xFFFFFFFF
 
 turn_on_vm:
 	mfs	r4, rmsr
@@ -326,8 +353,11 @@ found_invalid_tlb:
 	mts	rtlblo, r25
 	andi	r23, r23, PAGE4KMASK
 	ori	r23, r23, VALID|PAGE4K
-	rted	r17, 0x0
 	mts	rtlbhi, r23
+	ori	r4, r0, VM_ON 
+	mts	rmsr, r4
+	nop
+	rted	r17, 0x0
 	nop
 
 no_invalid_tlb:
