@@ -23,6 +23,10 @@
 	.set FRAME_BASE, 0x500000
 	.set VM_ON, 0x2502
 	.set PAGE_SZ, 0x1000
+	.set MAXPINNED	0x03	/* how many pinned TLBs/PTEs */
+	.set TLBMAXED	0x100	/* hi word is tlbpointer, lo is Y or N */
+	.set PTEMAXED	0x104
+	.set CLOCK_SWEEP 0x04
 
 	.macro switchex
 	addi	r5, r5, 0x01
@@ -167,23 +171,23 @@ prep_ptes:
 	ori	r19, r0, PTE_SIZE
 	ori	r20, r0, 0x00
 
-/* We work on the basis we have (PTECNT - 2) 4k frames */
+/* We work on the basis we have (PTECNT - MAXPINNED) 4k frames */
 /* In physical addresses from 0x500000 onwards */
-/* First two entries first */
+/* MAXPINNED entries first */
+	ori	r22, r0, MAXPINNED
+copy_pinned_tlbs:
 	mts	rtlbx, r20
 	mfs	r21, rtlblo
 	sw	r21, r12, r0
 	mfs	r21, rtlbhi
 	swi	r21, r12, PTE_SIZE_HALF
+	add	r12, r12, r19
+	rsubi	r22, r0, 0x01
+	bneid	r22, copy_pinned_tlbs
 	addik	r20, r20, 0x01
-	mts	rtlbx, r20
-	mfs	r21, rtlblo
-	sw	r21, r12, r0
-	mfs	r21, rtlbhi
-	swi	r21, r12, PTE_SIZE_HALF
-	addik	r20, r20, 0x01
-	addik	r11, r11, -2
-	ori	r21, r0, FRAME_BASE|WR|EX
+
+	addik	r11, r11, -MAXPINNED
+	ori	r21, r0, FRAME_BASE
 
 pte_loop:
 	addik	r11, r11, -1
@@ -254,23 +258,25 @@ handle_inststore_error:
 	bri 0
 
 handle_datatlb_miss:
+	ori	r19, r0, clock_sweep_pte
+	brald	r15, r19
 	/* ignoring pinned ptes 0 and 1 */
-	ori	r20, r0, 2
+	ori	r20, r0, MAXPINNED
 	/* real mode into page table TAG */
 	ori	r21, r0, SECOND_MAP_PHYS + 0x0C
 
+	ori	r26, r0, r0	/* will store first invalid PTE index */
+	mfs	r24, rear
+	andi	r24, r24, PAGE4KMASK	/* always 4k pages */
 load_PTE:
 	lw	r22, r21, r0		/* load page address */
-	andi	r23, r22, VALID		/* is it valid? */
-	beqi	r23, next_PTE
-	andi	r23, r22, PAGE4KMASK	/* mask address 		*/
-	mfs	r24, rear
-	andi	r24, r24, PAGE4KMASK 	/* will always be 4k pages here	*/
-	rsub	r25, r24, r23
+	andi	r23, r22, PAGE4KMASK
+	rsub	r27, r23, r24
+	beqid	r27, load_TLB 
+	andi	r25, r22, VALID
+	addk	r25, r25, r26
 	bnei	r25, next_PTE
-	/* now have match with r23 holding page and r20 index to PTEs */
-	/* so task is now to load this into TLB */
-	brai	load_TLB
+	ori	r26, r0, r20
 
 next_PTE:
 	addi	r20, r20, 0x01
@@ -363,4 +369,22 @@ found_invalid_tlb:
 
 no_invalid_tlb:
 	bri	0
+
+/* implement CLOCK for PTEs */
+clock_sweep_pte:
+	lwi	r25, r0, TLBMAXED
+	ori	r26, r0, CLOCK_SWEEP
+
+invalidate_pte:
+	lwi	r27, r25, PTE_SIZE_HALF
+	andi	r27, r27, ~VALID
+	addi	r25, r25, 0x01
+	rsubi	r28, r25, PTECNT
+	bnei	r28, count_down_ptes
+	ori	r25, r0, MAXPINNED
+count_down_ptes:
+	rsubi	r26, r0, 1
+	bnei	invalidate_pte
+	rtsd	r15, 0x08
+	nop
 
