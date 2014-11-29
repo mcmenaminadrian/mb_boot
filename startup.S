@@ -23,10 +23,10 @@
 	.set FRAME_BASE, 0x500000
 	.set VM_ON, 0x2502
 	.set PAGE_SZ, 0x1000
-	.set MAXPINNED	0x03	/* how many pinned TLBs/PTEs */
-	.set TLBMAXED	0x100	/* hi word is tlbpointer, lo is Y or N */
-	.set PTEMAXED	0x104
-	.set CLOCK_SWEEP 0x04
+	.set MAXPINNED,	0x03	/* how many pinned TLBs/PTEs */
+	.set TLBMAXED,	0x100	/* hi word is tlbpointer, lo is Y or N */
+	.set PTEMAXED,	0x104
+	.set CLOCK_SWEEP, 0x04
 
 	.macro switchex
 	addi	r5, r5, 0x01
@@ -384,7 +384,7 @@ invalidate_pte:
 	ori	r25, r0, MAXPINNED
 count_down_ptes:
 	rsubi	r26, r0, 1
-	bnei	invalidate_pte
+	bnei	r26, invalidate_pte
 	rtsd	r15, 0x08
 	nop
 
