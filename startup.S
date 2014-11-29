@@ -72,6 +72,8 @@ _vector_hw_exception:
 
 _actualstart:
 	addik	r3, r0, TLBCNT - 1
+	ori	r4, r0, MAXPINNED
+	swi	r4, r0, PTEMAXED	/* write out start point */
 _zeroouttlb:
 	mts	rtlbx, r3
 	mts	rtlbhi, r0
@@ -182,7 +184,7 @@ copy_pinned_tlbs:
 	mfs	r21, rtlbhi
 	swi	r21, r12, PTE_SIZE_HALF
 	add	r12, r12, r19
-	rsubi	r22, r0, 0x01
+	addik	r22, r22, -1
 	bneid	r22, copy_pinned_tlbs
 	addik	r20, r20, 0x01
 
@@ -372,19 +374,25 @@ no_invalid_tlb:
 
 /* implement CLOCK for PTEs */
 clock_sweep_pte:
-	lwi	r25, r0, TLBMAXED
+	lwi	r25, r0, PTEMAXED 
 	ori	r26, r0, CLOCK_SWEEP
+	muli	r29, r25, PTE_SIZE
+	addik	r29, r29, SECOND_MAP_PHYS
 
 invalidate_pte:
-	lwi	r27, r25, PTE_SIZE_HALF
+	lwi	r27, r29, PTE_SIZE_HALF
 	andi	r27, r27, ~VALID
-	addi	r25, r25, 0x01
+	swi	r27, r29, PTE_SIZE_HALF
+	addik	r25, r25, 0x01
+	addik	r29, r29, PTE_SIZE
 	rsubi	r28, r25, PTECNT
 	bnei	r28, count_down_ptes
 	ori	r25, r0, MAXPINNED
+	muli	r29, r25, PTE_SIZE
+	addik	r29, r29, SECOND_MAP_PHYS
 count_down_ptes:
-	rsubi	r26, r0, 1
+	addik	r26, r26, -1
 	bnei	r26, invalidate_pte
 	rtsd	r15, 0x08
-	nop
+	swi	r25, r0, PTEMAXED
 
