@@ -129,7 +129,7 @@ _setkernelpid:
 	ori	r4, r0, STACK_BOTTOM 
 	mts	rshr, r4
 	/* set r1 as stack pointer */
-	ori	r1, r0, STACK_BOTTOM
+	ori	r1, r0, STACK_BOTTOM - 4
 
 turn_on_vm:
 	mfs	r4, rmsr
@@ -270,6 +270,7 @@ handle_datatlb_miss:
 	or	r26, r0, r0	/* will store first invalid PTE index */
 	mfs	r24, rear
 	andi	r24, r24, PAGE4KMASK	/* always 4k pages */
+
 load_PTE:
 	lw	r22, r21, r0		/* load page address */
 	andi	r23, r22, PAGE4KMASK
@@ -289,9 +290,11 @@ next_PTE:
 
 	/* similar code to load_PTE except now we are looking for 	*/
 	/* an invalid entry we can fill in				*/
+
 no_PTE_match:
 	ori	r20, r0, 2
 	ori	r21, r0, SECOND_MAP_PHYS + 0x0C
+
 advance_PTE:
 	lw	r22, r21, r0
 	andi	r23, r22, VALID
@@ -378,10 +381,18 @@ clock_sweep_pte:
 	ori	r26, r0, CLOCK_SWEEP
 	muli	r29, r25, PTE_SIZE
 	addik	r29, r29, SECOND_MAP_PHYS
+	ori	r19, r0, clear_from_tlb
+	sw	r15, r1, r0
+	addik	r1, r1, -4
 
 invalidate_pte:
 	lwi	r27, r29, PTE_SIZE_HALF
+	andi	r28, r27, VALID
+	beqi	r28, invalidate_next
+	brald	r15, r19 
 	andi	r27, r27, ~VALID
+
+invalidate_next:
 	swi	r27, r29, PTE_SIZE_HALF
 	addik	r25, r25, 0x01
 	addik	r29, r29, PTE_SIZE
@@ -390,9 +401,33 @@ invalidate_pte:
 	ori	r25, r0, MAXPINNED
 	muli	r29, r25, PTE_SIZE
 	addik	r29, r29, SECOND_MAP_PHYS
+
 count_down_ptes:
 	addik	r26, r26, -1
 	bnei	r26, invalidate_pte
+	addik	r1, r1, 0x04
+	lw	r15, r1, r0
 	rtsd	r15, 0x08
 	swi	r25, r0, PTEMAXED
 
+/* if the page is mapped in the TLB we have to dump it */
+
+clear_from_tlb:
+	ori	r20, r0, MAXPINNED
+	ori	r21, r0, TLBCNT
+	mts	rtlbx, r20
+	mfs	r22, rtlbhi
+	andi	r23, r27, PAGE4KMASK
+	andi	r25, r22, PAGE4KMASK
+	rsub	r24, r25, r23
+	bnei	r24, move_to_next_tlb
+	andi	r22, r22, ~VALID
+	rtsd	r15, 0x08
+	mts	rtlbhi, r22
+
+move_to_next_tlb:
+	addik	r20, r20, 0x01
+	rsub	r22, r20, r21
+	bnei	r22, clear_from_tlb
+	rtsd	r15, 0x08
+	nop	
