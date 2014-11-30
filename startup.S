@@ -279,7 +279,8 @@ handle_datatlb_miss:
 	/* ignoring pinned ptes 0 and 1 */
 	ori	r20, r0, MAXPINNED
 	/* real mode into page table TAG */
-	ori	r21, r0, SECOND_MAP_PHYS + 0x0C
+	muli	r21, r20, PTE_SIZE
+	addik	r21, r21, SECOND_MAP_PHYS + PTE_SIZE_HALF
 
 	or	r26, r0, r0	/* will store first invalid PTE index */
 	mfs	r24, rear
