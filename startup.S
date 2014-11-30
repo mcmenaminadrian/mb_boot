@@ -129,7 +129,7 @@ _setkernelpid:
 	ori	r4, r0, STACK_BOTTOM 
 	mts	rshr, r4
 	/* set r1 as stack pointer */
-	ori	r1, r0, STACK_BOTTOM - 4
+	ori	r1, r0, STACK_BOTTOM - 3 
 
 turn_on_vm:
 	mfs	r4, rmsr
@@ -200,11 +200,25 @@ pte_loop:
 	add	r12, r12, r19
 
 finished_pte_loop:
+	nop
+
+testing:
 	/* now write to an unmapped address */
 	ori	r20, r0, 0
 	ori	r12, r0, 0x200000
 	/* next line should break it */
 	sw	r20, r12, r0
+	swi	r20, r0, 0x453250
+	swi	r20, r0, 0xA342670
+	swi	r20, r0, 0xBBBB0000
+	swi	r20, r0, 0xBBBB0004
+	swi	r20, r0, 0xAAAA0000
+	swi	r20, r0, 0x453254
+	swi	r20, r0, 0x9999900
+	swi	r20, r0, 0x5050AA00
+	swi	r20, r0, 0x90909090
+	swi	r20, r0, 0x90909080
+	bri	0
 
 _interrupt_handler:
 	ori	r20, r0, 0x01
@@ -292,18 +306,11 @@ next_PTE:
 	/* an invalid entry we can fill in				*/
 
 no_PTE_match:
-	ori	r20, r0, 2
-	ori	r21, r0, SECOND_MAP_PHYS + 0x0C
-
-advance_PTE:
+	or	r20, r0, r26
+	muli	r22, r20, PTE_SIZE
+	ori	r21, r0, SECOND_MAP_PHYS
+	addk	r21, r21, r22
 	lw	r22, r21, r0
-	andi	r23, r22, VALID
-	beqi	r23, found_invalid_PTE
-	addi	r20, r20, 0x01
-	rsubi	r23, r20, PTECNT + 1
-	beqi	r23, still_no_PTE_match
-	braid	advance_PTE
-	addi	r21, r21, PTE_SIZE
 
 found_invalid_PTE:
 	or	r4, r20, r20
@@ -320,10 +327,6 @@ found_invalid_PTE:
 	swi	r19, r21, -PTE_SIZE_HALF
 	
 	brai	load_TLB
-
-still_no_PTE_match:
-	
-	bri 0
 
 handle_insttlb_miss:
 	bri 0
@@ -344,13 +347,13 @@ _exception_handler:
 /* We are not writing OS code so no need to get fancy */
 load_TLB:
 	/* Look through the TLB entries for an invalid entry */
-	addik	r3, r0, 2
+	addik	r3, r0, MAXPINNED
 scantlb:
 	mts	rtlbx, r3
 	mfs	r24, rtlbhi
 	andi	r25, r24, VALID
 	beqi	r25, found_invalid_tlb
-	addik	r3, r0, 1
+	addik	r3, r3, 1
 	rsubi	r25, r3, TLBCNT
 	beqi	r25, no_invalid_tlb
 	brai	scantlb
@@ -373,7 +376,8 @@ found_invalid_tlb:
 	nop
 
 no_invalid_tlb:
-	bri	0
+	/* Keep on umapping pages till we hit one in the TLB */
+	brai	handle_datatlb_miss
 
 /* implement CLOCK for PTEs */
 clock_sweep_pte:
@@ -382,8 +386,8 @@ clock_sweep_pte:
 	muli	r29, r25, PTE_SIZE
 	addik	r29, r29, SECOND_MAP_PHYS
 	ori	r19, r0, clear_from_tlb
-	sw	r15, r1, r0
 	addik	r1, r1, -4
+	sw	r15, r1, r0
 
 invalidate_pte:
 	lwi	r27, r29, PTE_SIZE_HALF
@@ -405,10 +409,10 @@ invalidate_next:
 count_down_ptes:
 	addik	r26, r26, -1
 	bnei	r26, invalidate_pte
-	addik	r1, r1, 0x04
 	lw	r15, r1, r0
-	rtsd	r15, 0x08
 	swi	r25, r0, PTEMAXED
+	rtsd	r15, 0x08
+	addik	r1, r1, 0x04
 
 /* if the page is mapped in the TLB we have to dump it */
 
