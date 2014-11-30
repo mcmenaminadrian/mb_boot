@@ -17,8 +17,8 @@
 	.set PTE_SIZE_HALF, 0x04
 	.set SECOND_MAP_PHYS, 0x200000
 	.set SECOND_MAP_VIRT, 0x300000
-	.set STACK_MAP_PHYS, 0xFFFE0000
-	.set STACK_MAP_VIRT, 0xFFFE0000
+	.set STACK_MAP_PHYS, 0xFFFF0000
+	.set STACK_MAP_VIRT, 0xFFFF0000
 	.set STACK_BOTTOM, 0xFFFFFFFF
 	.set FRAME_BASE, 0x500000
 	.set VM_ON, 0x2502
@@ -90,11 +90,8 @@ _setkernelpid:
 	/* 1 <-> mapping for 1MB page at 0x00 */
 	ori	r11, r0, 0x0000
 	mts	rtlbx, r11
-	ori	r4, r0, 0x00
-	ori	r4, r4, EX|WR
+	ori	r4, r0, EX|WR
 	mts	rtlblo, r4
-
-	ori	r4, r0, 0x00
 	ori	r4, r0, VALID|PAGE1M 
 	mts	rtlbhi, r4
 
@@ -102,12 +99,9 @@ _setkernelpid:
 	/* maps SECOND_MAP_PHYS <-> SECOND_MAP_VERT for 4k */
 	ori	r11, r0, 0x01
 	mts	rtlbx, r11
-	ori	r4, r0, SECOND_MAP_PHYS
-	ori	r4, r4,	EX|WR
+	ori	r4, r0, SECOND_MAP_PHYS|EX|WR
 	mts	rtlblo, r4
-
-	ori	r4, r0, SECOND_MAP_VIRT
-	ori	r4, r4, VALID|PAGE4K
+	ori	r4, r0, SECOND_MAP_VIRT|VALID|PAGE4K
 	mts	rtlbhi, r4
 
 	/* setup TLB2 - 64K stack */
@@ -189,7 +183,7 @@ copy_pinned_tlbs:
 	addik	r20, r20, 0x01
 
 	addik	r11, r11, -MAXPINNED
-	ori	r21, r0, FRAME_BASE
+	ori	r21, r0, FRAME_BASE|WR|EX
 
 pte_loop:
 	addik	r11, r11, -1
@@ -276,7 +270,7 @@ handle_inststore_error:
 handle_datatlb_miss:
 	ori	r19, r0, clock_sweep_pte
 	brald	r15, r19
-	/* ignoring pinned ptes 0 and 1 */
+	/* ignoring pinned PTEs */
 	ori	r20, r0, MAXPINNED
 	/* real mode into page table TAG */
 	muli	r21, r20, PTE_SIZE
@@ -287,10 +281,10 @@ handle_datatlb_miss:
 	andi	r24, r24, PAGE4KMASK	/* always 4k pages */
 
 load_PTE:
-	lw	r22, r21, r0		/* load page address */
+	lw	r22, r21, r0		/* load page tag */
 	andi	r23, r22, PAGE4KMASK
 	rsub	r27, r23, r24
-	beqid	r27, load_TLB 
+	beqid	r27, validate_PTE
 	andi	r25, r22, VALID
 	addk	r25, r25, r26
 	bnei	r25, next_PTE
@@ -298,8 +292,8 @@ load_PTE:
 
 next_PTE:
 	addi	r20, r20, 0x01
-	rsubi	r23, r20, PTECNT + 1
-	beqi	r23, no_PTE_match
+	rsubi	r27, r20, PTECNT + 1
+	beqi	r27, no_PTE_match
 	braid	load_PTE
 	addi	r21, r21, PTE_SIZE
 
@@ -307,26 +301,24 @@ next_PTE:
 	/* an invalid entry we can fill in				*/
 
 no_PTE_match:
-	or	r20, r0, r26
-	muli	r22, r20, PTE_SIZE
-	ori	r21, r0, SECOND_MAP_PHYS
-	addk	r21, r21, r22
-	lw	r22, r21, r0
+	or	r20, r26, r26
+	muli	r21, r20, PTE_SIZE
+	addik	r21, r21, SECOND_MAP_PHYS + PTE_SIZE_HALF
 
 found_invalid_PTE:
-	or	r4, r20, r20
-	mfs	r3, rear
-	andi	r3, r3, PAGE4KMASK
 	/* insert the mapping in the PTE */
 	/* r21 has the address we want to write to */
 	/* make the mapping valid and correct size*/
- 	or	r19, r3, r0
-	ori	r19, r19, WR|EX
+	or	r23, r24, r0
+	ori	r19, r23, VALID|PAGE4K
 	sw	r19, r21, r0
-	lwi	r19, r21, -PTE_SIZE_HALF
-	ori	r19, r19, VALID|PAGE4K
-	swi	r19, r21, -PTE_SIZE_HALF
 	
+	brai	load_TLB
+
+validate_PTE:
+	bnei	r25, load_TLB	/* r25 tested for VALID in delay slot */
+	ori	r22, r22, VALID|PAGE4K
+	sw	r22, r21, r0
 	brai	load_TLB
 
 handle_insttlb_miss:
@@ -352,7 +344,7 @@ load_TLB:
 scantlb:
 	mts	rtlbx, r3
 	mfs	r24, rtlbhi
-	andi	r25, r24, VALID
+	andi	r25, r24, ~VALID
 	beqi	r25, found_invalid_tlb
 	addik	r3, r3, 1
 	rsubi	r25, r3, TLBCNT
@@ -370,9 +362,6 @@ found_invalid_tlb:
 	andi	r23, r23, PAGE4KMASK
 	ori	r23, r23, VALID|PAGE4K
 	mts	rtlbhi, r23
-	ori	r4, r0, VM_ON 
-	mts	rmsr, r4
-	nop
 	rted	r17, 0x0
 	nop
 
