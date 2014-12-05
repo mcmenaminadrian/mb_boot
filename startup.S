@@ -396,6 +396,7 @@ count_down_ptes:
 clear_from_tlb:
 	ori	r20, r0, MAXPINNED
 	ori	r21, r0, TLBCNT
+clearing_tlb:
 	mts	rtlbx, r20
 	mfs	r22, rtlbhi
 	andi	r23, r27, PAGE4KMASK
@@ -409,6 +410,6 @@ clear_from_tlb:
 move_to_next_tlb:
 	addik	r20, r20, 0x01
 	rsub	r22, r20, r21
-	bnei	r22, clear_from_tlb
+	bnei	r22, clearing_tlb
 	rtsd	r15, 0x08
 	nop	
