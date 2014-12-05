@@ -196,23 +196,10 @@ pte_loop:
 finished_pte_loop:
 	nop
 
-testing:
-	/* now write to an unmapped address */
-	ori	r20, r0, 0
-	ori	r12, r0, 0x200000
-	/* next line should break it */
-	sw	r20, r12, r0
-	swi	r20, r0, 0x453250
-	swi	r20, r0, 0xA342670
-	swi	r20, r0, 0xBBBB0000
-	swi	r20, r0, 0xBBBB0004
-	swi	r20, r0, 0xAAAA0000
-	swi	r20, r0, 0x453254
-	swi	r20, r0, 0x9999900
-	swi	r20, r0, 0x5050AA00
-	swi	r20, r0, 0x90909090
-	swi	r20, r0, 0x90909080
-	bri	0
+go_user_mode:
+	bralid	r15, generated_traffic
+	nop
+	bri 0
 
 _interrupt_handler:
 	ori	r20, r0, 0x01

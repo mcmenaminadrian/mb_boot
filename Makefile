@@ -3,7 +3,7 @@ include $(IMPERAS_HOME)/bin/Makefile.include
 
 CROSS = MICROBLAZE
 
-ASRC = startup.S
+ASRC = startup.S traffic.S
 AEXE = $(patsubst %.S,%.$(CROSS).elf,$(ASRC))
 -include $(IMPERAS_HOME)/lib/$(IMPERAS_ARCH)/CrossCompiler/$(CROSS).makefile.include
 ifeq ($($(CROSS)_CC),)
@@ -16,9 +16,10 @@ all: $(AEXE)
 	echo "Linking $@"
 	$(CROSS_COMPILE)ld -T ./bootlink.lds -o $@ $< 
 
+
 %.o: %.S
 	echo "Compiling $<"
-	$(CROSS_COMPILE)as -o $@ $<
+	$(CROSS_COMPILE)as -o $@ startup.S traffic.S
 
 clean:
 	- rm -f *.elf *.o
