@@ -331,7 +331,7 @@ load_TLB:
 scantlb:
 	mts	rtlbx, r3
 	mfs	r24, rtlbhi
-	andi	r25, r24, ~VALID
+	andi	r25, r24, VALID
 	beqi	r25, found_invalid_tlb
 	addik	r3, r3, 1
 	rsubi	r25, r3, TLBCNT
@@ -354,7 +354,10 @@ found_invalid_tlb:
 
 no_invalid_tlb:
 	/* Keep on umapping pages till we hit one in the TLB */
-	brai	handle_datatlb_miss
+	ori	r19, r0, clock_sweep_pte
+	brald	r15, r19
+	nop
+	brai	load_TLB
 
 /* implement CLOCK for PTEs */
 clock_sweep_pte:
@@ -394,6 +397,8 @@ count_down_ptes:
 /* if the page is mapped in the TLB we have to dump it */
 
 clear_from_tlb:
+	addik	r1, r1, -4
+	sw	r25, r1, r0
 	ori	r20, r0, MAXPINNED
 	ori	r21, r0, TLBCNT
 clearing_tlb:
@@ -404,6 +409,8 @@ clearing_tlb:
 	rsub	r24, r25, r23
 	bnei	r24, move_to_next_tlb
 	andi	r22, r22, ~VALID
+	lw	r25, r1, r0
+	addik	r1, r1, 0x04
 	rtsd	r15, 0x08
 	mts	rtlbhi, r22
 
@@ -411,5 +418,6 @@ move_to_next_tlb:
 	addik	r20, r20, 0x01
 	rsub	r22, r20, r21
 	bnei	r22, clearing_tlb
+	lw	r25, r1, r0	
 	rtsd	r15, 0x08
-	nop	
+	addik	r1, r1, 0x04	
