@@ -255,6 +255,9 @@ handle_inststore_error:
 	bri 0
 
 handle_datatlb_miss:
+	nop
+.global exit
+exit:
 	ori	r19, r0, clock_sweep_pte
 	brald	r15, r19
 	/* ignoring pinned PTEs */
@@ -309,7 +312,7 @@ validate_PTE:
 	brai	load_TLB
 
 handle_insttlb_miss:
-	bri 0
+	bri 0 
 
 _handle_breakpoint:
 	ori	r20, r0, 0x10

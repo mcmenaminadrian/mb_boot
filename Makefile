@@ -17,9 +17,9 @@ all: $(AEXE)
 	$(CROSS_COMPILE)ld -T ./bootlink.lds -o $@ $< 
 
 
-%.o: %.S
+%.o: %.S traffic.S
 	echo "Compiling $<"
 	$(CROSS_COMPILE)as -o $@ startup.S traffic.S
 
 clean:
-	- rm -f *.elf *.o
+	rm -f *.elf *.o
