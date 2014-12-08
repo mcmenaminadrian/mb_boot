@@ -16,7 +16,7 @@ startup.$(CROSS).elf: startup.$(CROSS).o
 
 startup.$(CROSS).o: startup.S traffic.S
 	$(V) echo "Compiling Application $@"
-	$(V) $($(CROSS)_AS)  -o $@  startup.S traffic.S
+	$(V) $($(CROSS)_AS) -o $@  startup.S traffic.S
 
 #asmtest.$(CROSS).elf.dump: asmtest.$(CROSS).elf
 #	$(V) echo "Creating Objdump of $@"

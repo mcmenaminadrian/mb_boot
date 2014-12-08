@@ -196,6 +196,11 @@ pte_loop:
 finished_pte_loop:
 	nop
 
+
+.global exit
+exit:
+	nop
+
 go_user_mode:
 	bralid	r15, generated_traffic
 	nop
@@ -256,8 +261,6 @@ handle_inststore_error:
 
 handle_datatlb_miss:
 	nop
-.global exit
-exit:
 	ori	r19, r0, clock_sweep_pte
 	brald	r15, r19
 	/* ignoring pinned PTEs */
