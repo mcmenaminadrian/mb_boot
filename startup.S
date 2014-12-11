@@ -63,13 +63,12 @@ _vector_breakpoint:
 _vector_hw_exception:
 	brai	_hw_exception_handler
 
-	.org 0x100
 	.section .text
 	.global _actualstart
 	.align 4
 	.ent _actualstart
 	.type _actualstart, @function
-
+	.org 0x100
 _actualstart:
 	addik	r3, r0, TLBCNT - 1
 	ori	r4, r0, MAXPINNED
@@ -80,7 +79,7 @@ _zeroouttlb:
 	mts	rtlblo, r0
 	bgtid	r3, _zeroouttlb	/* Uses delay slot */
 	addik	r3, r3, -1
-
+.end _actualstart
 _setkernelpid:
 	mts	rpid, r0
 	nop
@@ -197,10 +196,6 @@ finished_pte_loop:
 	nop
 
 
-.global exit
-exit:
-	nop
-
 go_user_mode:
 	bralid	r15, generated_traffic
 	nop
@@ -315,7 +310,14 @@ validate_PTE:
 	brai	load_TLB
 
 handle_insttlb_miss:
-	bri 0 
+
+.global exit
+.ent exit
+.type exit, @function
+
+exit:
+	nop
+.end exit
 
 _handle_breakpoint:
 	ori	r20, r0, 0x10
