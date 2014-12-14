@@ -3,8 +3,8 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x80
-	.set TLBCNT, 0x40
+	.set PTECNT, 0x08
+	.set TLBCNT, 0x08
 	.set EX, 0x200
 	.set WR, 0x100
 	.set VALID, 0x40
@@ -12,19 +12,19 @@
 	.set PAGE64K, 0x180
 	.set PAGE4KMASK, 0xFFFFF000
 	.set PAGE64KMASK, 0xFFFF0000
-	.set PAGE1M, 0x280
+	.set PAGE1M, 0x380	/* 0x380 for 16 MB 0x180 for 1MB */
 	.set PTE_SIZE, 0x08
 	.set PTE_SIZE_HALF, 0x04
-	.set SECOND_MAP_PHYS, 0x200000
-	.set SECOND_MAP_VIRT, 0x300000
+	.set SECOND_MAP_PHYS, 0x1000000
+	.set SECOND_MAP_VIRT, 0x2000000
 	.set STACK_MAP_PHYS, 0xFFFF0000
 	.set STACK_MAP_VIRT, 0xFFFF0000
 	.set STACK_BOTTOM, 0xFFFFFFFF
-	.set FRAME_BASE, 0x500000
+	.set FRAME_BASE, 0x8000000
 	.set VM_ON, 0x2502
 	.set PAGE_SZ, 0x1000
 	.set MAXPINNED,	0x03	/* how many pinned TLBs/PTEs */
-	.set TLBMAXED,	0x100	/* hi word is tlbpointer, lo is Y or N */
+	.set PTEUSED,	0x100	/* hi word is tlbpointer, lo is Y or N */
 	.set PTEMAXED,	0x104
 	.set CLOCK_SWEEP, 0x04
 
@@ -234,7 +234,7 @@ _hw_exception_handler:
 	switchex
 	beqid	r6, handle_datatlb_miss
 	switchex
-	beqid	r6, handle_insttlb_miss
+	beqid	r6, handle_datatlb_miss
 	nop
 	/* should never get here */
 	bri 0
@@ -273,16 +273,27 @@ load_PTE:
 	andi	r23, r22, PAGE4KMASK
 	rsub	r27, r23, r24
 	beqid	r27, validate_PTE
+	nop
 	andi	r25, r22, VALID
 	addk	r25, r25, r26
 	bnei	r25, next_PTE
 	or	r26, r0, r20
+
+check_free_ptes:
+	lwi	r19, r0, PTEMAXED
+	andi	r29, r19, 0xFFFF0000
+	bnei	r29, next_PTE
+	rsubi	r29, r26, PTECNT - 1
+	bnei	r29, next_PTE
+	ori	r19, r19, 0xFFFF0000
+	swi	r19, r0, PTEMAXED
 
 next_PTE:
 	addi	r20, r20, 0x01
 	rsubi	r27, r20, PTECNT + 1
 	beqi	r27, no_PTE_match
 	braid	load_PTE
+	nop
 	addi	r21, r21, PTE_SIZE
 
 	/* similar code to load_PTE except now we are looking for 	*/
@@ -369,7 +380,13 @@ no_invalid_tlb:
 
 /* implement CLOCK for PTEs */
 clock_sweep_pte:
-	lwi	r25, r0, PTEMAXED 
+	lwi	r25, r0, PTEMAXED
+	andi	r26, r25, 0xFFFF0000
+	bnei	r26, sweep_on
+	rtsd	r15, 0x08
+	nop	
+sweep_on:
+	andi	r25, r25, 0xFFFF 
 	ori	r26, r0, CLOCK_SWEEP
 	muli	r29, r25, PTE_SIZE
 	addik	r29, r29, SECOND_MAP_PHYS
@@ -398,6 +415,7 @@ count_down_ptes:
 	addik	r26, r26, -1
 	bnei	r26, invalidate_pte
 	lw	r15, r1, r0
+	ori	r25, r25, 0xFFFF0000
 	swi	r25, r0, PTEMAXED
 	rtsd	r15, 0x08
 	addik	r1, r1, 0x04
