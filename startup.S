@@ -12,7 +12,7 @@
 	.set PAGE64K, 0x180
 	.set PAGE4KMASK, 0xFFFFF000
 	.set PAGE64KMASK, 0xFFFF0000
-	.set PAGE1M, 0x380	/* 0x380 for 16 MB 0x180 for 1MB */
+	.set PAGE1M, 0x300	/* 0x380 for 16 MB, 0x300 4MB, 0x280 1MB */
 	.set PTE_SIZE, 0x08
 	.set PTE_SIZE_HALF, 0x04
 	.set SECOND_MAP_PHYS, 0x1000000
@@ -26,7 +26,7 @@
 	.set MAXPINNED,	0x03	/* how many pinned TLBs/PTEs */
 	.set PTEUSED,	0x100	/* hi word is tlbpointer, lo is Y or N */
 	.set PTEMAXED,	0x104
-	.set CLOCK_SWEEP, 0x04
+	.set CLOCK_SWEEP, 0x01
 
 	.macro switchex
 	addi	r5, r5, 0x01
@@ -139,15 +139,14 @@ turn_on_vm:
 	ori	r20, r0, 0x00
 	
 outer_zero_loop:
-	addik	r11, r11, -1
 	beqid	r11, finished_zero_loop
-	nop
+	addik	r11, r11, -1
 
 inner_zero_loop:
 	sw	r0, r12, r20
-	addik	r20, r20, PTE_SIZE_HALF 
+	addik	r20, r20, 0x04 
 	rsub	r21, r20, r19
-	bltid	r21, end_inner_zero_loop
+	bleid	r21, end_inner_zero_loop
 	nop
 	braid	inner_zero_loop
 	nop
@@ -194,7 +193,6 @@ pte_loop:
 
 finished_pte_loop:
 	nop
-
 
 go_user_mode:
 	bralid	r15, generated_traffic
@@ -255,7 +253,6 @@ handle_inststore_error:
 	bri 0
 
 handle_datatlb_miss:
-	nop
 	ori	r19, r0, clock_sweep_pte
 	brald	r15, r19
 	/* ignoring pinned PTEs */
@@ -273,7 +270,6 @@ load_PTE:
 	andi	r23, r22, PAGE4KMASK
 	rsub	r27, r23, r24
 	beqid	r27, validate_PTE
-	nop
 	andi	r25, r22, VALID
 	addk	r25, r25, r26
 	bnei	r25, next_PTE
@@ -293,7 +289,6 @@ next_PTE:
 	rsubi	r27, r20, PTECNT + 1
 	beqi	r27, no_PTE_match
 	braid	load_PTE
-	nop
 	addi	r21, r21, PTE_SIZE
 
 	/* similar code to load_PTE except now we are looking for 	*/
