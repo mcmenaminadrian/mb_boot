@@ -197,7 +197,13 @@ finished_pte_loop:
 go_user_mode:
 	bralid	r15, generated_traffic
 	nop
-	bri 0
+.global exit
+.ent exit
+.type exit, @function
+
+exit:
+	nop
+.end exit
 
 _interrupt_handler:
 	ori	r20, r0, 0x01
@@ -232,7 +238,7 @@ _hw_exception_handler:
 	switchex
 	beqid	r6, handle_datatlb_miss
 	switchex
-	beqid	r6, handle_datatlb_miss
+	beqid	r6, handle_insttlb_miss
 	nop
 	/* should never get here */
 	bri 0
@@ -317,13 +323,9 @@ validate_PTE:
 
 handle_insttlb_miss:
 
-.global exit
-.ent exit
-.type exit, @function
+	ori 	r19, r0, 0xDEADBEEF
+	bri	0	
 
-exit:
-	nop
-.end exit
 
 _handle_breakpoint:
 	ori	r20, r0, 0x10
