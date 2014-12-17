@@ -3,7 +3,7 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x08
+	.set PTECNT, 0x10
 	.set TLBCNT, 0x08
 	.set EX, 0x200
 	.set WR, 0x100
@@ -285,7 +285,7 @@ check_free_ptes:
 	lwi	r19, r0, PTEMAXED
 	andi	r29, r19, 0xFFFF0000
 	bnei	r29, next_PTE
-	rsubi	r29, r26, PTECNT - 1
+	rsubi	r29, r26, TLBCNT - 1 /* have to start removal when TLB blocked */
 	bnei	r29, next_PTE
 	ori	r19, r19, 0xFFFF0000
 	swi	r19, r0, PTEMAXED
@@ -352,13 +352,13 @@ scantlb:
 	addik	r3, r3, 1
 	rsubi	r25, r3, TLBCNT
 	beqi	r25, no_invalid_tlb
-	brai	scantlb
+	bri	scantlb
 
 found_invalid_tlb:
 	/* set up tlblo first */
 	muli	r24, r20, PTE_SIZE
 	addi	r24, r24, SECOND_MAP_PHYS
-	lw	r25, r0, r24
+	lw	r25, r0, r2
 	andi	r25, r25, PAGE4KMASK
 	ori	r25, r25, EX|WR
 	mts	rtlblo, r25
@@ -370,8 +370,20 @@ found_invalid_tlb:
 
 no_invalid_tlb:
 	/* Keep on umapping pages till we hit one in the TLB */
-	ori	r19, r0, clock_sweep_pte
-	brald	r15, r19
+	/* But start ahead of current PTE */
+	lwi	r25, r0, PTEMAXED
+	rsub	r28, r25, r20
+	bnei	r28, keep_trying_tlb
+	addik	r25, r25, 0x01
+	rsubi	r28, r25, PTECNT
+	bnei	r28, store_updated_tlbcounter
+	ori	r25, r0, MAXPINNED
+
+store_updated_tlbcounter:
+	swi	r25, r0, PTEMAXED
+
+keep_trying_tlb:
+	brlid	r15, clock_sweep_pte
 	nop
 	brai	load_TLB
 
@@ -385,37 +397,40 @@ clock_sweep_pte:
 sweep_on:
 	andi	r25, r25, 0xFFFF 
 	ori	r26, r0, CLOCK_SWEEP
+
+keep_sweeping:
 	muli	r29, r25, PTE_SIZE
 	addik	r29, r29, SECOND_MAP_PHYS
-	ori	r19, r0, clear_from_tlb
-	addik	r1, r1, -4
-	sw	r15, r1, r0
 
 invalidate_pte:
 	lwi	r27, r29, PTE_SIZE_HALF
-	andi	r28, r27, VALID
-	beqi	r28, invalidate_next
-	brald	r15, r19 
+	andi	r28, r27, VALID		/* tells if we might need TLB clean */
+	beqi	r28, advance_clock_hand
+	ori	r19, r0, clear_from_tlb
+	addik	r1, r1, -4
+	sw	r15, r1, r0
+	brald	r15, r19
 	andi	r27, r27, ~VALID
-
-invalidate_next:
 	swi	r27, r29, PTE_SIZE_HALF
-	addik	r25, r25, 0x01
-	addik	r29, r29, PTE_SIZE
-	rsubi	r28, r25, PTECNT
-	bnei	r28, count_down_ptes
-	ori	r25, r0, MAXPINNED
-	muli	r29, r25, PTE_SIZE
-	addik	r29, r29, SECOND_MAP_PHYS
-
-count_down_ptes:
-	addik	r26, r26, -1
-	bnei	r26, invalidate_pte
 	lw	r15, r1, r0
+	addik	r1, r1, 0x04
+
+advance_clock_hand:
+	addik	r25, r25, 0x01
+	rsubi	r28, r25, PTECNT
+	bnei	r28, exhaust_clock_sweep
+	ori	r25, r0, MAXPINNED
+
+exhaust_clock_sweep:
 	ori	r25, r25, 0xFFFF0000
+	addik	r26, r26, -1
+	bnei	r26, keep_sweeping
+	
+
+store_clock_value:
 	swi	r25, r0, PTEMAXED
 	rtsd	r15, 0x08
-	addik	r1, r1, 0x04
+	nop
 
 /* if the page is mapped in the TLB we have to dump it */
 
