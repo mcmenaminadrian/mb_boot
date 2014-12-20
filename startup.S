@@ -465,10 +465,10 @@ look_inside_pte:
 	ori	r26, r0, MAXPINNED - 1	
 
 compare_to_stacked_tlb:
-	addik	r26, r0, 0x01
-	rsubi	r4, r26, MAXPINNED
+	addik	r26, r26, 0x01
+	rsubi	r4, r26, TLBCNT
 	beqi	r4, back_on_stack
-	lw	r4, r1, r0
+	lw	r29, r1, r0
 	rsub	r30, r29, r27
 	bnei	r30, get_next_stacked_tlb
 	or	r28, r0, r26
@@ -481,21 +481,24 @@ back_on_stack:
 	ori	r26, r0, MAXPINNED
 
 stacking_down:
-	addik	r1, r0, -4
-	addik	r26, r0, 0x01
+	addik	r1, r1, -4
+	addik	r26, r26, 0x01
 	rsubi	r27, r26, TLBCNT
 	bnei	r27, stacking_down
 
-	bnei	r28, try_next_pte
+	beqi	r28, try_next_pte
 	mts	rtlbx, r28
 	mts	rtlbhi, r0
+	muli	r29, r25, PTE_SIZE
+	addik	r29, r29, SECOND_MAP_PHYS
 	lwi	r27, r29, PTE_SIZE_HALF
 	andi	r27, r27, ~VALID
 	swi	r27, r29, PTE_SIZE_HALF
 	ori	r26, r0, MAXPINNED
 
 stacking_up:
-	addik	r1, r0, 0x04
+	addik	r1, r1, 0x04
+	addik	r26, r26, 0x01
 	rsubi	r27, r26, TLBCNT
 	bnei	r27, stacking_up
 	rtsd	r15, 0x08
@@ -503,7 +506,7 @@ stacking_up:
 
 try_next_pte:
 	addik	r25, r25, 0x01
-	rsubi	r27, r25, TLBCNT
+	rsubi	r27, r25, PTECNT
 	bnei	r27, get_any_tlb_match
 	brid	get_any_tlb_match
 	ori	r25, r0, MAXPINNED
