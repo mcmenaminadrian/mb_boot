@@ -385,7 +385,7 @@ store_updated_tlbcounter:
 keep_trying_tlb:
 	addik	r1, r1, -4
 	sw	r20, r1, r0
-	brlid	r15, clock_sweep_pte
+	brlid	r15, wipe_tlb_entry
 	nop
 	lw	r20, r1, r0
 	addik	r1, r1, 0x04
@@ -435,6 +435,79 @@ store_clock_value:
 	rtsd	r15, 0x08
 	nop
 
+/* find a TLB entry to clean */
+wipe_tlb_entry:
+	lwi	r25, r0, PTEMAXED
+	andi	r25, r25, 0xFFFF
+	/* dump TLB values on the stack */
+	ori	r26, r0, TLBCNT - 1
+
+dump_tlb_on_stack:
+	mts	rtlbx, r26
+	mfs	r27, rtlbhi
+	andi	r27, r27, PAGE4KMASK
+	addik	r1, r1, -4
+	sw	r27, r1, r0
+	addik	r26, r26, -1
+	rsubi	r27, r26, MAXPINNED - 1
+	bnei	r27, dump_tlb_on_stack
+	
+get_any_tlb_match:
+	muli	r29, r25, PTE_SIZE
+	addik	r29, r29, SECOND_MAP_PHYS
+
+look_inside_pte:
+	lwi	r27, r29, PTE_SIZE_HALF
+	andi	r28, r27, VALID
+	beqi	r28, try_next_pte
+	andi	r27, r27, PAGE4KMASK
+	or	r28, r0, r0
+	ori	r26, r0, MAXPINNED - 1	
+
+compare_to_stacked_tlb:
+	addik	r26, r0, 0x01
+	rsubi	r4, r26, MAXPINNED
+	beqi	r4, back_on_stack
+	lw	r4, r1, r0
+	rsub	r30, r29, r27
+	bnei	r30, get_next_stacked_tlb
+	or	r28, r0, r26
+
+get_next_stacked_tlb:
+	brid compare_to_stacked_tlb
+	addik	r1, r1, 0x04
+
+back_on_stack:
+	ori	r26, r0, MAXPINNED
+
+stacking_down:
+	addik	r1, r0, -4
+	addik	r26, r0, 0x01
+	rsubi	r27, r26, TLBCNT
+	bnei	r27, stacking_down
+
+	bnei	r28, try_next_pte
+	mts	rtlbx, r28
+	mts	rtlbhi, r0
+	lwi	r27, r29, PTE_SIZE_HALF
+	andi	r27, r27, ~VALID
+	swi	r27, r29, PTE_SIZE_HALF
+	ori	r26, r0, MAXPINNED
+
+stacking_up:
+	addik	r1, r0, 0x04
+	rsubi	r27, r26, TLBCNT
+	bnei	r27, stacking_up
+	rtsd	r15, 0x08
+	nop	
+
+try_next_pte:
+	addik	r25, r25, 0x01
+	rsubi	r27, r25, TLBCNT
+	bnei	r27, get_any_tlb_match
+	brid	get_any_tlb_match
+	ori	r25, r0, MAXPINNED
+	
 /* if the page is mapped in the TLB we have to dump it */
 
 clear_from_tlb:
