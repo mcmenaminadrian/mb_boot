@@ -383,8 +383,12 @@ store_updated_tlbcounter:
 	swi	r25, r0, PTEMAXED
 
 keep_trying_tlb:
+	addik	r1, r1, -4
+	sw	r20, r1, r0
 	brlid	r15, clock_sweep_pte
 	nop
+	lw	r20, r1, r0
+	addik	r1, r1, 0x04
 	brai	load_TLB
 
 /* implement CLOCK for PTEs */
@@ -422,12 +426,11 @@ advance_clock_hand:
 	ori	r25, r0, MAXPINNED
 
 exhaust_clock_sweep:
-	ori	r25, r25, 0xFFFF0000
 	addik	r26, r26, -1
 	bnei	r26, keep_sweeping
-	
 
 store_clock_value:
+	ori	r25, r25, 0xFFFF0000
 	swi	r25, r0, PTEMAXED
 	rtsd	r15, 0x08
 	nop
