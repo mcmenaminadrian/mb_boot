@@ -273,6 +273,11 @@ handle_datatlb_miss:
 
 load_PTE:
 	lw	r22, r21, r0		/* load page tag */
+	bnei	r22, keep_loading_PTE
+	braid	check_free_ptes
+	or	r26, r0, r20
+
+keep_loading_PTE:
 	andi	r23, r22, PAGE4KMASK
 	rsub	r27, r23, r24
 	beqid	r27, validate_PTE
@@ -292,7 +297,7 @@ check_free_ptes:
 
 next_PTE:
 	addi	r20, r20, 0x01
-	rsubi	r27, r20, PTECNT + 1
+	rsubi	r27, r20, PTECNT
 	beqi	r27, no_PTE_match
 	braid	load_PTE
 	addi	r21, r21, PTE_SIZE
