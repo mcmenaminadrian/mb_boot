@@ -316,11 +316,11 @@ no_PTE_match:
 found_invalid_PTE:
 	or	r23, r24, r0
 	ori	r4, r0, PAGE_SIZE
-	/* First: is the PTE entry NULL */
-	beqid	r23, empty_PTE_entry
-	/* No, so copy addresses */
 	ori	r3, r0, DUMMY_ZONE
-	andi	r5, r23, PAGE4KMASK
+	/* First: is the PTE entry NULL */
+	beqid	r22, empty_PTE_entry
+	/* No, so copy addresses */
+	and	r5, r22, r0 
 	or	r6, r0, r0
 
 	lw	r30, r5, r6
@@ -338,7 +338,7 @@ empty_PTE_entry:
 	ori	r19, r23, VALID|PAGE4K
 	sw	r19, r21, r0
 	/* now have to copy in */
-	andi	r5, r23, PAGE4KMASK
+	and	r5, r23, r0
 	or	r6, r0, r0
 
 	lw	r30, r3, r6
