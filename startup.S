@@ -321,7 +321,7 @@ found_invalid_PTE:
 	/* No, so copy addresses */
 	ori	r3, r0, DUMMY_ZONE
 	andi	r5, r23, PAGE4KMASK
-	ori	r6, r0, r0
+	or	r6, r0, r0
 
 	lw	r30, r5, r6
 copy_out:
@@ -339,7 +339,7 @@ empty_PTE_entry:
 	sw	r19, r21, r0
 	/* now have to copy in */
 	andi	r5, r23, PAGE4KMASK
-	ori	r6, r0, r0
+	or	r6, r0, r0
 
 	lw	r30, r3, r6
 copy_in:
