@@ -27,6 +27,9 @@
 	.set PTEUSED,	0x100	/* hi word is tlbpointer, lo is Y or N */
 	.set PTEMAXED,	0x104
 	.set CLOCK_SWEEP, 0x01
+	.set DUMMY_ZONE, 0xA0000
+	.set DUMMY_ZONE_2, 0xA1000
+	.set PAGE_SIZE, 0x1000
 
 	.macro switchex
 	addi	r5, r5, 0x01
@@ -311,13 +314,41 @@ no_PTE_match:
 	addik	r21, r21, SECOND_MAP_PHYS + PTE_SIZE_HALF
 
 found_invalid_PTE:
+	or	r23, r24, r0
+	ori	r4, r0, PAGE_SIZE
+	/* First: is the PTE entry NULL */
+	beqid	r23, empty_PTE_entry
+	/* No, so copy addresses */
+	ori	r3, r0, DUMMY_ZONE
+	andi	r5, r23, PAGE4KMASK
+	ori	r6, r0, r0
+
+	lw	r30, r5, r6
+copy_out:
+	sw	r30, r3, r6
+	addi	r6, r6, 0x04
+	rsub	r30, r6, r4
+	bneid	r30, copy_out
+	lw	r30, r5, r6
+ 
+empty_PTE_entry:
 	/* insert the mapping in the PTE */
 	/* r21 has the address we want to write to */
 	/* make the mapping valid and correct size*/
-	or	r23, r24, r0
 	ori	r19, r23, VALID|PAGE4K
 	sw	r19, r21, r0
-	
+	/* now have to copy in */
+	andi	r5, r23, PAGE4KMASK
+	ori	r6, r0, r0
+
+	lw	r30, r3, r6
+copy_in:
+	sw	r30, r5, r6
+	addi	r6, r6, 0x04
+	rsub	r30, r6, r4
+	bneid	r30, copy_in
+	lw	r30, r3, r6
+
 	brai	load_TLB
 
 validate_PTE:
