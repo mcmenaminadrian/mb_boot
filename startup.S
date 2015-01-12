@@ -3,7 +3,7 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x10
+	.set PTECNT, 0x20
 	.set TLBCNT, 0x08
 	.set EX, 0x200
 	.set WR, 0x100
@@ -26,9 +26,8 @@
 	.set MAXPINNED,	0x03	/* how many pinned TLBs/PTEs */
 	.set PTEUSED,	0x100	/* hi word is tlbpointer, lo is Y or N */
 	.set PTEMAXED,	0x104
-	.set CLOCK_SWEEP, 0x01
+	.set CLOCK_SWEEP, 0x05
 	.set DUMMY_ZONE, 0xA0000
-	.set DUMMY_ZONE_2, 0xA1000
 	.set PAGE_SIZE, 0x1000
 
 	.macro switchex
@@ -320,7 +319,7 @@ found_invalid_PTE:
 	/* First: is the PTE entry NULL */
 	beqid	r22, empty_PTE_entry
 	/* No, so copy addresses */
-	and	r5, r22, r0 
+	or	r5, r22, r0 
 	or	r6, r0, r0
 
 	lw	r30, r5, r6
@@ -338,7 +337,7 @@ empty_PTE_entry:
 	ori	r19, r23, VALID|PAGE4K
 	sw	r19, r21, r0
 	/* now have to copy in */
-	and	r5, r23, r0
+	or	r5, r23, r0
 	or	r6, r0, r0
 
 	lw	r30, r3, r6
@@ -394,7 +393,7 @@ found_invalid_tlb:
 	/* set up tlblo first */
 	muli	r24, r20, PTE_SIZE
 	addi	r24, r24, SECOND_MAP_PHYS
-	lw	r25, r0, r2
+	lw	r25, r0, r24
 	andi	r25, r25, PAGE4KMASK
 	ori	r25, r25, EX|WR
 	mts	rtlblo, r25
