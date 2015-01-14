@@ -119,12 +119,27 @@ _setkernelpid:
 	mts	rtlbhi, r4
 
 	/* set stack pointer registers */
+	/* we are going to place LRU queue right at the very bottom of stack */
 	ori	r4, r0, STACK_MAP_VIRT
 	mts	rslr, r4
-	ori	r4, r0, STACK_BOTTOM 
+	ori	r4, r0, STACK_BOTTOM
+	/* one byte per LRU ref */
+	rsubi	r4, r0, PTECNT - MAXPINNED
 	mts	rshr, r4
 	/* set r1 as stack pointer */
-	ori	r1, r0, STACK_BOTTOM - 3 
+	addi	r4, r0, -3 
+	or	r1, r0, r4
+	/* zero the LRU references */
+	or	r3, r0, r0
+	addi	r4, r0, PTECNT - MAXPINNED
+	addi	r5, r0, STACK_BOTTOM
+
+zero_lru_stack:
+	sb	r0, r5, r3
+	addi	r3, r0, 1
+	rsubi	r6, r3, r4
+	bnei	r6, zero_lru_stack
+	 
 
 turn_on_vm:
 	mfs	r4, rmsr
