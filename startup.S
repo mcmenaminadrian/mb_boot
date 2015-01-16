@@ -137,7 +137,7 @@ _setkernelpid:
 zero_lru_stack:
 	sb	r0, r5, r3
 	addi	r3, r0, 1
-	rsubi	r6, r3, r4
+	rsub	r6, r3, r4
 	bnei	r6, zero_lru_stack
 	 
 
