@@ -29,6 +29,7 @@
 	.set CLOCK_SWEEP, 0x05
 	.set DUMMY_ZONE, 0xA0000
 	.set PAGE_SIZE, 0x1000
+	.set ENTRY_SIZE	0x01
 
 	.macro switchex
 	addi	r5, r5, 0x01
@@ -129,13 +130,14 @@ _setkernelpid:
 	/* set r1 as stack pointer */
 	addi	r4, r0, -3 
 	or	r1, r0, r4
-	/* zero the LRU references */
-	or	r3, r0, r0
-	addi	r4, r0, PTECNT - MAXPINNED
-	addi	r5, r0, STACK_BOTTOM
+	/* order the LRU references */
+	addi	r3, r0, MAXPINNED 	/* start from here */
+	addi	r4, r0, PTECNT		/* max PTEs */
+	addi	r5, r0, STACK_BOTTOM	/* write here */
 
 zero_lru_stack:
-	sb	r0, r5, r3
+	rsubi	r6, r3, MAXPINNED
+	sb	r3, r5, r6
 	addi	r3, r0, 1
 	rsub	r6, r3, r4
 	bnei	r6, zero_lru_stack
@@ -276,7 +278,8 @@ handle_inststore_error:
 	bri 0
 
 handle_datatlb_miss:
-	ori	r19, r0, clock_sweep_pte
+	ori	r3, r0, CLOCK_SWEEP 
+	ori	r19, r0, sweep_stacked 
 	brald	r15, r19
 	/* ignoring pinned PTEs */
 	ori	r20, r0, MAXPINNED
@@ -441,50 +444,6 @@ keep_trying_tlb:
 	addik	r1, r1, 0x04
 	brai	load_TLB
 
-/* implement CLOCK for PTEs */
-clock_sweep_pte:
-	lwi	r25, r0, PTEMAXED
-	andi	r26, r25, 0xFFFF0000
-	bnei	r26, sweep_on
-	rtsd	r15, 0x08
-	nop	
-sweep_on:
-	andi	r25, r25, 0xFFFF 
-	ori	r26, r0, CLOCK_SWEEP
-
-keep_sweeping:
-	muli	r29, r25, PTE_SIZE
-	addik	r29, r29, SECOND_MAP_PHYS
-
-invalidate_pte:
-	lwi	r27, r29, PTE_SIZE_HALF
-	andi	r28, r27, VALID		/* tells if we might need TLB clean */
-	beqi	r28, advance_clock_hand
-	ori	r19, r0, clear_from_tlb
-	addik	r1, r1, -4
-	sw	r15, r1, r0
-	brald	r15, r19
-	andi	r27, r27, ~VALID
-	swi	r27, r29, PTE_SIZE_HALF
-	lw	r15, r1, r0
-	addik	r1, r1, 0x04
-
-advance_clock_hand:
-	addik	r25, r25, 0x01
-	rsubi	r28, r25, PTECNT
-	bnei	r28, exhaust_clock_sweep
-	ori	r25, r0, MAXPINNED
-
-exhaust_clock_sweep:
-	addik	r26, r26, -1
-	bnei	r26, keep_sweeping
-
-store_clock_value:
-	ori	r25, r25, 0xFFFF0000
-	swi	r25, r0, PTEMAXED
-	rtsd	r15, 0x08
-	nop
-
 /* find a TLB entry to clean */
 wipe_tlb_entry:
 	lwi	r25, r0, PTEMAXED
@@ -587,4 +546,123 @@ move_to_next_tlb:
 	bnei	r22, clearing_tlb
 	lw	r25, r1, r0	
 	rtsd	r15, 0x08
+	addik	r1, r1, 0x04
+
+/* LRU subroutines follow */
+mark_stacked:
+	/* r3 has queue entry to be demoted */
+	/* store r4, r5, r6 on stack */
+	addik	r1, r1, -4
+	sw	r4, r1, r0
+	addik	r1, r1, -4
+	sw	r5, r1, r0
+	addik	r1, r1, -4
+	sw	r6, r1, r0
+	
+	ori	r6, r0, PTECNT - MAXPINNED
+
+	or	r4, r3, r0
+	sb	r3, r3, r0
+	
+	
+
+
+search_stacked:
+	/* r3 will return PTE number */
+	/* r4 will return the LRU queue position */
+	/* store r4, r5, r6 on stack */
+	addik	r1, r1, -4
+	sw	r5, r1, r0
+	addik	r1, r1, -4
+	sw	r6, r1, r0
+	
+	ori	r4, r0, r0	/* where we are */
+test_next_on_stack
+	lbi	r5, r4, STACK_BOTTOM
+	andi	r5, r5, 0x40
+	beqid	r5, found_invalid_on_stack
+	addik	r4, r4, -ENTRY_SIZE
+	brai	test_next_on_stack
+
+found_invalid_on_stack:
+	lbi	r3, r4, STACK_BOTTOM
+	andi	r3, r3, 0x3F
+	lw	r6, r1, r0
+	addik	r1, r1, 0x04
+	lw	r5, r1, r0
+	rtsd	r15, 0x08
 	addik	r1, r1, 0x04	
+
+
+/*sweep*/
+sweep_stacked:
+	/* r3 has number of pages to mark */
+	/* store r4, r5, r6 on stack */
+	addik	r1, r1, -4
+	sw	r4, r1, r0
+	addik	r1, r1, -4
+	sw	r5, r1, r0
+	addik	r1, r1, -4
+	sw	r6, r1, r0
+	/* first of all - do we need to do this? */
+	ori	r4, r0, ENTRY_SIZE
+	muli	r4, r4, PTECNT - MAXPINNED
+	rsubi	r5, r4, STACK_BOTTOM
+	lb	r6, r0, r5
+	andi	r6, r6, 0xC0	/* 2 highest bits */
+	bneid	r6, keep_sweeping_stack
+end_the sweep:
+	lw	r6, r1, r0
+	addik	r1, r1, 0x04
+	lw	r5, r1, r0
+	addik	r1, r1, 0x04
+	lw	r4, r1, r0
+	rtsd	r15, 0x08	/* no, we don't so return */
+	addik	r1, r1, 0x04
+	
+
+keep_sweeping_stack:	/* yes, we do */
+	ori	r4, r0, PTECNT - MAXPINNED	/* total sweepable entries */
+	ori	r5, r0, r0			/* swept this many so far */
+	lbi	r6, r5, STACK_BOTTOM
+next_sweeping_stack:
+	andi	r6, r6, 0x40			/* V bit only */
+	bneid	r6, next_sweep_stack
+	/* clear from the TLB - if it's in there */
+	addik	r1, r1, -4
+	sw	r15, r1, r0
+	lbi	r6, r5, STACK_BOTTOM
+	addik	r1, r1, -4
+	sw	r6, r1, r0
+	andi	r6, r6, 0x3F
+	muli	r29, r6, PTE_SIZE
+	addik	r29, r6, SECOND_MAP_PHYS
+	lwi	r27, r29, PTE_SIZE_HALF
+	addik	r1, r1, -4
+	sw	r27, r1, r0
+	addik	r1, r1, -4
+	sw	r29, r1, r0
+	ori	r6, r0, clear_from_tlb
+	brald	r15, r6
+	nop
+	/* fix the PTE entry too */
+	lw	r29, r1, r0
+	addik	r1, r1, 4
+	lw	r27, r1, r0
+	addik	r1, r1, 4
+	andi	r27, r27, ~VALID
+	sw	r27, r29, r0
+	lw	r6, r1, r0
+	addik	r1, r1, 4
+	lw	r15, r1, r0
+	addik	r1, r1, 4
+	andi	r6, r6, 0xBF
+	sbi	r6, r5, STACK_BOTTOM
+	addi	r3, r3, -1
+	beqid	r3, end_the_sweep		/* done enough */
+
+	addi	r5, r5, -0x01
+	add	r6, r5, r4
+	bneqid	r6, end_the_sweep		/* end of the stack */
+	lbi	r6, r5, STACK_BOTTOM
+	brai	next_sweeping_stack
