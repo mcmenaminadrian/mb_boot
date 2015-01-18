@@ -283,8 +283,96 @@ handle_datatlb_miss:
 	brald	r15, r19
 	nop
 
-	
+	/* now check if PTE addresses match */
+	ori	r3, r0, MAXPINNED	/* r3 is index to PTE */
+	muli	r4, r3, PTE_SIZE	/* r4 points to PTE itself */
+	addik	r4, r4, SECOND_MAP_PHYS + PTE_SIZE_HALF
+
+	mfs	r5, rear	/* r5 has faulting address */
+	andi	r5, r5, PAGE4KMASK
+
+look_in_PTE:
+	lw	r6, r4, r0	/* r6 has PTE data */
+	andi	r6, r6, PAGE4KMASK
+	rsubi	r6, r6, r5
+	bnei	r6, keep_looking_in_PTE
+	ori	r19, r0, get_entry_for_match /*FIX ME*/
+	brald	r15, r19
+	nop
+	brai	fix_up_stack /*FIX ME*/
+
+keep_looking_in_PTE:
+	addik	r3, r3, 1
+	rsubi	r6, r3, PTECNT
+	beqi	r6, end_of_PTE_look
+	braid	look_in_PTE
+	addik	r4, r4, PTE_SIZE
+
+end_of_PTE_look:	
 	/* Now look for an empty PTE */
+	ori	r19, r0, search_stacked
+	brald	r15, r19
+	nop /* r3 has PTE index, r4 has stack index */
+	/* is it an empty entry? */
+	addik	r1, r1, -4
+	sw	r3, r1, r0
+	addik	r1, r1, -4
+	sw	r4, r1, r0
+	muli	r5, r3, PTE_SIZE
+	addik	r5, r5, SECOND_MAP_PHYS + PTE_SIZE_HALF
+	lw	r6, r5, r0
+	ori	r4, r0, PAGE_SIZE
+	ori	r3, r0, DUMMY_ZONE
+	beqid	r6, PTE_entry_empty
+	nop
+
+	andi	r5, r6, PAGE4KMASK
+	or	r6, r0, r0
+	lw	r30, r5, r6
+write_out:
+	sw	r30, r3, r6
+	addik	r6, r6, 0x04
+	rsub	r30, r6, r4
+	bneid	r30, write_out
+	lw	r30, r5, r6
+
+PTE_entry_empty:
+	/* now, fix up PTE entry */
+	mfs	r6, rear
+	andi	r6, r6, PAGE4KMASK
+	ori	r6, r6, VALID|PAGE4K
+	sw	r6, r5, r0
+
+	or	r6, r0, r0
+	mfs	r5, rear
+	andi	r5, r5, PAGE4KMASK
+	lw	r30, r3, r6
+
+write_in:
+	sw	r30, r5, r6
+	addik	r6, r6, 0x04
+	rsub	r30, r6, r4
+	bneid	r30, write_in
+	lw	r30, r3, r6
+
+	lw	r4, r1, r0
+	addik	r1, r1, 0x04
+
+	or	r3, r4, r0
+	ori	r19, r0, mark_stack
+	brald	r15, r19
+	nop
+	lw	r3, r1, r0
+	addik	r1, r1, 0x04 /* r3 indexes PTE entry */
+
+	ori	r20, r3, r0
+	ori	r23, r5, r0
+	brai	load_TLB	/* done */
+	
+
+
+
+
 
 
 
