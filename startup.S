@@ -29,7 +29,7 @@
 	.set CLOCK_SWEEP, 0x05
 	.set DUMMY_ZONE, 0xA0000
 	.set PAGE_SIZE, 0x1000
-	.set ENTRY_SIZE	0x01
+	.set ENTRY_SIZE, 0x01
 
 	.macro switchex
 	addi	r5, r5, 0x01
@@ -564,7 +564,7 @@ mark_stacked:
 	or	r4, r3, r0
 	muli	r3, r3, ENTRY_SIZE
 	rsubi	r3, r3, STACK_BOTTOM
-	lb	r3, r3, r0 /* r3 now holds contents of entry to be demoted */
+	lbu	r3, r3, r0 /* r3 now holds contents of entry to be demoted */
 marking_loop:
 	rsub	r5, r4, r6
 	bnei	r5, keep_on_marking
@@ -576,7 +576,7 @@ keep_on_marking:
 	addik	r5, r4, -1
 	muli	r5, r5, ENTRY_SIZE
 	rsubi	r5, r5, STACK_BOTTOM
-	lb	r5, r5, r0
+	lbu	r5, r5, r0
 	addik	r1, r1, -4
 	sw	r3, r1, r0
 	muli	r3, r4, ENTRY_SIZE
@@ -599,16 +599,16 @@ search_stacked:
 	addik	r1, r1, -4
 	sw	r6, r1, r0
 	
-	ori	r4, r0, r0	/* where we are */
-test_next_on_stack
-	lbi	r5, r4, STACK_BOTTOM
+	or	r4, r0, r0	/* where we are */
+test_next_on_stack:
+	lbui	r5, r4, STACK_BOTTOM
 	andi	r5, r5, 0x40
 	beqid	r5, found_invalid_on_stack
 	addik	r4, r4, -ENTRY_SIZE
 	brai	test_next_on_stack
 
 found_invalid_on_stack:
-	lbi	r3, r4, STACK_BOTTOM
+	lbui	r3, r4, STACK_BOTTOM
 	andi	r3, r3, 0x3F
 	lw	r6, r1, r0
 	addik	r1, r1, 0x04
@@ -633,10 +633,10 @@ sweep_stacked:
 	ori	r4, r0, ENTRY_SIZE
 	muli	r4, r4, PTECNT - MAXPINNED
 	rsubi	r5, r4, STACK_BOTTOM
-	lb	r6, r0, r5
+	lbu	r6, r0, r5
 	andi	r6, r6, 0xC0	/* 2 highest bits */
 	bneid	r6, keep_sweeping_stack
-end_the sweep:
+end_the_sweep:
 	lw	r6, r1, r0
 	addik	r1, r1, 0x04
 	lw	r5, r1, r0
@@ -648,15 +648,15 @@ end_the sweep:
 
 keep_sweeping_stack:	/* yes, we do */
 	ori	r4, r0, PTECNT - MAXPINNED	/* total sweepable entries */
-	ori	r5, r0, r0			/* swept this many so far */
-	lbi	r6, r5, STACK_BOTTOM
+	or	r5, r0, r0			/* swept this many so far */
+	lbui	r6, r5, STACK_BOTTOM
 next_sweeping_stack:
 	andi	r6, r6, 0x40			/* V bit only */
-	bneid	r6, next_sweep_stack
+	bneid	r6, still_sweeping_stack
 	/* clear from the TLB - if it's in there */
 	addik	r1, r1, -4
 	sw	r15, r1, r0
-	lbi	r6, r5, STACK_BOTTOM
+	lbui	r6, r5, STACK_BOTTOM
 	addik	r1, r1, -4
 	sw	r6, r1, r0
 	andi	r6, r6, 0x3F
@@ -685,11 +685,11 @@ next_sweeping_stack:
 	sbi	r6, r5, STACK_BOTTOM
 	addi	r3, r3, -1
 	beqid	r3, end_the_sweep		/* done enough */
-
+still_sweeping_stack:
 	addi	r5, r5, -0x01
 	add	r6, r5, r4
-	bneqid	r6, end_the_sweep		/* end of the stack */
-	lbi	r6, r5, STACK_BOTTOM
+	bneid	r6, end_the_sweep		/* end of the stack */
+	lbui	r6, r5, STACK_BOTTOM
 	brai	next_sweeping_stack
 
 /* end of sweeping function */
