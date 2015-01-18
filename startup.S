@@ -562,9 +562,32 @@ mark_stacked:
 	ori	r6, r0, PTECNT - MAXPINNED
 
 	or	r4, r3, r0
-	sb	r3, r3, r0
+	muli	r3, r3, ENTRY_SIZE
+	rsubi	r3, r3, STACK_BOTTOM
+	lb	r3, r3, r0 /* r3 now holds contents of entry to be demoted */
+marking_loop:
+	rsub	r5, r4, r6
+	bnei	r5, keep_on_marking
+	ori	r3, r3, 0xC0
+	sb	r3, r4, r0
+	brai	end_the_sweep /* we are done */
+
+keep_on_marking:
+	addik	r5, r4, -1
+	muli	r5, r5, ENTRY_SIZE
+	rsubi	r5, r5, STACK_BOTTOM
+	lb	r5, r5, r0
+	addik	r1, r1, -4
+	sw	r3, r1, r0
+	muli	r3, r4, ENTRY_SIZE
+	rsubi	r3, r3, STACK_BOTTOM
+	sb	r5, r3, r0
+	lw	r3, r1, r0
+	addik	r1, r1, 0x04
+	addik	r4, r4, -1
+	brai	marking_loop
 	
-	
+/* End of marking function */	
 
 
 search_stacked:
@@ -592,6 +615,8 @@ found_invalid_on_stack:
 	lw	r5, r1, r0
 	rtsd	r15, 0x08
 	addik	r1, r1, 0x04	
+
+/* end of searching fucnction */ 
 
 
 /*sweep*/
@@ -666,3 +691,5 @@ next_sweeping_stack:
 	bneqid	r6, end_the_sweep		/* end of the stack */
 	lbi	r6, r5, STACK_BOTTOM
 	brai	next_sweeping_stack
+
+/* end of sweeping function */
