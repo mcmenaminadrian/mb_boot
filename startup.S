@@ -281,6 +281,13 @@ handle_datatlb_miss:
 	ori	r3, r0, CLOCK_SWEEP 
 	ori	r19, r0, sweep_stacked 
 	brald	r15, r19
+	nop
+
+	
+	/* Now look for an empty PTE */
+
+
+
 	/* ignoring pinned PTEs */
 	ori	r20, r0, MAXPINNED
 	/* real mode into page table TAG */
@@ -593,7 +600,7 @@ keep_on_marking:
 search_stacked:
 	/* r3 will return PTE number */
 	/* r4 will return the LRU queue position */
-	/* store r4, r5, r6 on stack */
+	/* store r5, r6 on stack */
 	addik	r1, r1, -4
 	sw	r5, r1, r0
 	addik	r1, r1, -4
