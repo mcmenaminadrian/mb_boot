@@ -295,11 +295,19 @@ look_in_PTE:
 	lw	r6, r4, r0	/* r6 has PTE data */
 	andi	r6, r6, PAGE4KMASK
 	rsubi	r6, r6, r5
-	bnei	r6, keep_looking_in_PTE
-	ori	r19, r0, get_entry_for_match /*FIX ME*/
+	bneid	r6, keep_looking_in_PTE
+	lw	r6, r4, r0	/* found the PTE entry so fix it up */
+	ori	r6, r6, VALID|PAGE4K
+	sw	r6, r4, r0
+	ori	r19, r0, get_entry_for_match 
+	brald	r15, r19
+	nop			/* r3 now has index to stack entry */
+	ori	r19, r0, mark_stack /* so push it to back of LRU queue */
 	brald	r15, r19
 	nop
-	brai	fix_up_stack /*FIX ME*/
+	mfs	r3, rear
+	andi	r3, r3, PAGE4KMASK
+	brai	fix_up_tlb 
 
 keep_looking_in_PTE:
 	addik	r3, r3, 1
@@ -365,109 +373,44 @@ write_in:
 	lw	r3, r1, r0
 	addik	r1, r1, 0x04 /* r3 indexes PTE entry */
 
-	ori	r20, r3, r0
-	ori	r23, r5, r0
-	brai	load_TLB	/* done */
-	
+	mfs	r4, rear
+	andi	r4, r4, PAGE4KMASK
 
+fix_up_tlb:
+	/* now have fixed the PTE but have to fix the TLBs */
+	/* r4 has the page we need to slot in */
+	/* r3 has the index to the PTE */
 
+	addik	r1, r1, -4
+	sw	r3, r1, r0
+	/* is there a free TLB slot? */
+	ori	r5, r0, MAXPINNED
+	ori	r6, r0, TLBCNT
+loop_fix_up_tlb:
+	mts	rtlbx, r5
+	mfs	r3, rtlbhi
+	andi	r3, r3, VALID
+	bnei	r3, keep_fixing_tlb
+	/* have an invalid TLB entry, so fix it up */
+	lw	r3, r1, r0
+	addik	r1, r1, 0x04
+	muli	r3, r3, PTE_SIZE
+	addik	r3, r3, SECOND_MAP_PHYS
+	lw	r3, r3, r0
+	andi	r3, r3, PAGE4KMASK
+	ori	r3, r3, EX|WR
+	mts	rtlbo, r3
+	andi	r4, r4, VALID|PAGE4K
+	rted	r17, 0x0
+	mts	rtlbhi, r4
 
+keep_fixing_tlb:
+	addik	r5, r5, 0x01
+	rsub	r3, r5, r6
+	bnei	r3, loop_fix_up_tlb
 
-
-
-
-	/* ignoring pinned PTEs */
-	ori	r20, r0, MAXPINNED
-	/* real mode into page table TAG */
-	muli	r21, r20, PTE_SIZE
-	addik	r21, r21, SECOND_MAP_PHYS + PTE_SIZE_HALF
-
-	or	r26, r0, r0	/* will store first invalid PTE index */
-	mfs	r24, rear
-	andi	r24, r24, PAGE4KMASK	/* always 4k pages */
-
-load_PTE:
-	lw	r22, r21, r0		/* load page tag */
-	bnei	r22, keep_loading_PTE
-	braid	check_free_ptes
-	or	r26, r0, r20
-
-keep_loading_PTE:
-	andi	r23, r22, PAGE4KMASK
-	rsub	r27, r23, r24
-	beqid	r27, validate_PTE
-	andi	r25, r22, VALID
-	addk	r25, r25, r26
-	bnei	r25, next_PTE
-	or	r26, r0, r20
-
-check_free_ptes:
-	lwi	r19, r0, PTEMAXED
-	andi	r29, r19, 0xFFFF0000
-	bnei	r29, next_PTE
-	rsubi	r29, r26, TLBCNT - 1 /* have to start removal when TLB blocked */
-	bnei	r29, next_PTE
-	ori	r19, r19, 0xFFFF0000
-	swi	r19, r0, PTEMAXED
-
-next_PTE:
-	addi	r20, r20, 0x01
-	rsubi	r27, r20, PTECNT
-	beqi	r27, no_PTE_match
-	braid	load_PTE
-	addi	r21, r21, PTE_SIZE
-
-	/* similar code to load_PTE except now we are looking for 	*/
-	/* an invalid entry we can fill in				*/
-
-no_PTE_match:
-	or	r20, r26, r26
-	muli	r21, r20, PTE_SIZE
-	addik	r21, r21, SECOND_MAP_PHYS + PTE_SIZE_HALF
-
-found_invalid_PTE:
-	or	r23, r24, r0
-	ori	r4, r0, PAGE_SIZE
-	ori	r3, r0, DUMMY_ZONE
-	/* First: is the PTE entry NULL */
-	beqid	r22, empty_PTE_entry
-	/* No, so copy addresses */
-	or	r5, r22, r0 
-	or	r6, r0, r0
-
-	lw	r30, r5, r6
-copy_out:
-	sw	r30, r3, r6
-	addi	r6, r6, 0x04
-	rsub	r30, r6, r4
-	bneid	r30, copy_out
-	lw	r30, r5, r6
- 
-empty_PTE_entry:
-	/* insert the mapping in the PTE */
-	/* r21 has the address we want to write to */
-	/* make the mapping valid and correct size*/
-	ori	r19, r23, VALID|PAGE4K
-	sw	r19, r21, r0
-	/* now have to copy in */
-	or	r5, r23, r0
-	or	r6, r0, r0
-
-	lw	r30, r3, r6
-copy_in:
-	sw	r30, r5, r6
-	addi	r6, r6, 0x04
-	rsub	r30, r6, r4
-	bneid	r30, copy_in
-	lw	r30, r3, r6
-
-	brai	load_TLB
-
-validate_PTE:
-	bnei	r25, load_TLB	/* r25 tested for VALID in delay slot */
-	ori	r22, r22, VALID|PAGE4K
-	sw	r22, r21, r0
-	brai	load_TLB
+/* we have invalid TLB entries - so roll the clock on */
+	brai	handle_data_tlb_miss
 
 handle_insttlb_miss:
 
@@ -485,163 +428,29 @@ _exception_handler:
 	ori	r20, r0, 0x03
 	bri	0
 
-/* Get here with r23 holding page address and r20 index to PTE */
-/* While r21 points to high mapping */
-/* We know there is no valid TLB entry that matches */
-/* We are not writing OS code so no need to get fancy */
-load_TLB:
-	/* Look through the TLB entries for an invalid entry */
-	addik	r3, r0, MAXPINNED
-scantlb:
-	mts	rtlbx, r3
-	mfs	r24, rtlbhi
-	andi	r25, r24, VALID
-	beqi	r25, found_invalid_tlb
-	addik	r3, r3, 1
-	rsubi	r25, r3, TLBCNT
-	beqi	r25, no_invalid_tlb
-	bri	scantlb
-
-found_invalid_tlb:
-	/* set up tlblo first */
-	muli	r24, r20, PTE_SIZE
-	addi	r24, r24, SECOND_MAP_PHYS
-	lw	r25, r0, r24
-	andi	r25, r25, PAGE4KMASK
-	ori	r25, r25, EX|WR
-	mts	rtlblo, r25
-	andi	r23, r23, PAGE4KMASK
-	ori	r23, r23, VALID|PAGE4K
-	mts	rtlbhi, r23
-	rted	r17, 0x0
-	nop
-
-no_invalid_tlb:
-	/* Keep on umapping pages till we hit one in the TLB */
-	/* But start ahead of current PTE */
-	lwi	r25, r0, PTEMAXED
-	rsub	r28, r25, r20
-	bnei	r28, keep_trying_tlb
-	addik	r25, r25, 0x01
-	rsubi	r28, r25, PTECNT
-	bnei	r28, store_updated_tlbcounter
-	ori	r25, r0, MAXPINNED
-
-store_updated_tlbcounter:
-	swi	r25, r0, PTEMAXED
-
-keep_trying_tlb:
-	addik	r1, r1, -4
-	sw	r20, r1, r0
-	brlid	r15, wipe_tlb_entry
-	nop
-	lw	r20, r1, r0
-	addik	r1, r1, 0x04
-	brai	load_TLB
-
-/* find a TLB entry to clean */
-wipe_tlb_entry:
-	lwi	r25, r0, PTEMAXED
-	andi	r25, r25, 0xFFFF
-	/* dump TLB values on the stack */
-	ori	r26, r0, TLBCNT - 1
-
-dump_tlb_on_stack:
-	mts	rtlbx, r26
-	mfs	r27, rtlbhi
-	andi	r27, r27, PAGE4KMASK
-	addik	r1, r1, -4
-	sw	r27, r1, r0
-	addik	r26, r26, -1
-	rsubi	r27, r26, MAXPINNED - 1
-	bnei	r27, dump_tlb_on_stack
-	
-get_any_tlb_match:
-	muli	r29, r25, PTE_SIZE
-	addik	r29, r29, SECOND_MAP_PHYS
-
-look_inside_pte:
-	lwi	r27, r29, PTE_SIZE_HALF
-	andi	r28, r27, VALID
-	beqi	r28, try_next_pte
-	andi	r27, r27, PAGE4KMASK
-	or	r28, r0, r0
-	ori	r26, r0, MAXPINNED - 1	
-
-compare_to_stacked_tlb:
-	addik	r26, r26, 0x01
-	rsubi	r4, r26, TLBCNT
-	beqi	r4, back_on_stack
-	lw	r29, r1, r0
-	rsub	r30, r29, r27
-	bnei	r30, get_next_stacked_tlb
-	or	r28, r0, r26
-
-get_next_stacked_tlb:
-	brid compare_to_stacked_tlb
-	addik	r1, r1, 0x04
-
-back_on_stack:
-	ori	r26, r0, MAXPINNED
-
-stacking_down:
-	addik	r1, r1, -4
-	addik	r26, r26, 0x01
-	rsubi	r27, r26, TLBCNT
-	bnei	r27, stacking_down
-
-	beqi	r28, try_next_pte
-	mts	rtlbx, r28
-	mts	rtlbhi, r0
-	muli	r29, r25, PTE_SIZE
-	addik	r29, r29, SECOND_MAP_PHYS
-	lwi	r27, r29, PTE_SIZE_HALF
-	andi	r27, r27, ~VALID
-	swi	r27, r29, PTE_SIZE_HALF
-	ori	r26, r0, MAXPINNED
-
-stacking_up:
-	addik	r1, r1, 0x04
-	addik	r26, r26, 0x01
-	rsubi	r27, r26, TLBCNT
-	bnei	r27, stacking_up
-	rtsd	r15, 0x08
-	nop	
-
-try_next_pte:
-	addik	r25, r25, 0x01
-	rsubi	r27, r25, PTECNT
-	bnei	r27, get_any_tlb_match
-	brid	get_any_tlb_match
-	ori	r25, r0, MAXPINNED
-	
 /* if the page is mapped in the TLB we have to dump it */
 
+/* clear_from_tlb -if tlb entry exists, mark it invalid */
+/* r27 holds data */
 clear_from_tlb:
-	addik	r1, r1, -4
-	sw	r25, r1, r0
-	ori	r20, r0, MAXPINNED
-	ori	r21, r0, TLBCNT
-clearing_tlb:
-	mts	rtlbx, r20
-	mfs	r22, rtlbhi
-	andi	r23, r27, PAGE4KMASK
-	andi	r25, r22, PAGE4KMASK
-	rsub	r24, r25, r23
-	bnei	r24, move_to_next_tlb
-	andi	r22, r22, ~VALID
-	lw	r25, r1, r0
-	addik	r1, r1, 0x04
+	andi	r27, r27, PAGE4KMASK
+	ori	r3, r0, MAXPINNED
+	ori	r4, r0, TLBCNT
+loop_clear_from_tlb:
+	mts	rtlbx, r3
+	mfs	r6, rtlbhi
+	andi	r6, r6, PAGE4KMASK
+	rsubi	r5, r6, r27
+	bnei	r5, keep_clearing_from_tlb
+	rtsd	r15, 0x08	/* found a match so wipe it */
+	mts	rtlbhi, r0
+keep_clearing_from_tlb:
+	addik	r3, r3, 0x01
+	rsubi	r5, r3, r4
+	bnei	loop_clear_from_tlb
 	rtsd	r15, 0x08
-	mts	rtlbhi, r22
-
-move_to_next_tlb:
-	addik	r20, r20, 0x01
-	rsub	r22, r20, r21
-	bnei	r22, clearing_tlb
-	lw	r25, r1, r0	
-	rtsd	r15, 0x08
-	addik	r1, r1, 0x04
+	nop
+	
 
 /* LRU subroutines follow */
 mark_stacked:
@@ -788,3 +597,24 @@ still_sweeping_stack:
 	brai	next_sweeping_stack
 
 /* end of sweeping function */
+
+/* get_entry_for_match function */
+
+get_entry_for_match:
+	/* r3 has the index for the PTE */
+	/* return with r3 = stack entry that matches */
+	ori	r4, r0, STACK_BOTTOM
+	ori	r5, r0, r0
+loop_getting:
+	lbu	r6, r4, r5
+	rsubi	r6, r6, r3
+	bnei	r6, keep_getting
+	rsubi	r5, r5, 0
+	or	r3, r5, r0
+	rtsd	r15, 0x08
+	nop
+keep_getting:
+	addik	r5, r5, -1
+	brai	loop_getting
+	
+/* end of get_entry_for_match */	
