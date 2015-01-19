@@ -294,7 +294,7 @@ handle_datatlb_miss:
 look_in_PTE:
 	lw	r6, r4, r0	/* r6 has PTE data */
 	andi	r6, r6, PAGE4KMASK
-	rsubi	r6, r6, r5
+	rsub	r6, r6, r5
 	bneid	r6, keep_looking_in_PTE
 	lw	r6, r4, r0	/* found the PTE entry so fix it up */
 	ori	r6, r6, VALID|PAGE4K
@@ -302,7 +302,7 @@ look_in_PTE:
 	ori	r19, r0, get_entry_for_match 
 	brald	r15, r19
 	nop			/* r3 now has index to stack entry */
-	ori	r19, r0, mark_stack /* so push it to back of LRU queue */
+	ori	r19, r0, mark_stacked /* so push it to back of LRU queue */
 	brald	r15, r19
 	nop
 	mfs	r3, rear
@@ -367,7 +367,7 @@ write_in:
 	addik	r1, r1, 0x04
 
 	or	r3, r4, r0
-	ori	r19, r0, mark_stack
+	ori	r19, r0, mark_stacked
 	brald	r15, r19
 	nop
 	lw	r3, r1, r0
@@ -399,7 +399,7 @@ loop_fix_up_tlb:
 	lw	r3, r3, r0
 	andi	r3, r3, PAGE4KMASK
 	ori	r3, r3, EX|WR
-	mts	rtlbo, r3
+	mts	rtlblo, r3
 	andi	r4, r4, VALID|PAGE4K
 	rted	r17, 0x0
 	mts	rtlbhi, r4
@@ -410,7 +410,7 @@ keep_fixing_tlb:
 	bnei	r3, loop_fix_up_tlb
 
 /* we have invalid TLB entries - so roll the clock on */
-	brai	handle_data_tlb_miss
+	brai	handle_datatlb_miss
 
 handle_insttlb_miss:
 
@@ -440,14 +440,14 @@ loop_clear_from_tlb:
 	mts	rtlbx, r3
 	mfs	r6, rtlbhi
 	andi	r6, r6, PAGE4KMASK
-	rsubi	r5, r6, r27
+	rsub	r5, r6, r27
 	bnei	r5, keep_clearing_from_tlb
 	rtsd	r15, 0x08	/* found a match so wipe it */
 	mts	rtlbhi, r0
 keep_clearing_from_tlb:
 	addik	r3, r3, 0x01
-	rsubi	r5, r3, r4
-	bnei	loop_clear_from_tlb
+	rsub	r5, r3, r4
+	bnei	r5, loop_clear_from_tlb
 	rtsd	r15, 0x08
 	nop
 	
@@ -604,12 +604,12 @@ get_entry_for_match:
 	/* r3 has the index for the PTE */
 	/* return with r3 = stack entry that matches */
 	ori	r4, r0, STACK_BOTTOM
-	ori	r5, r0, r0
+	or	r5, r0, r0
 loop_getting:
 	lbu	r6, r4, r5
-	rsubi	r6, r6, r3
+	rsub	r6, r6, r3
 	bnei	r6, keep_getting
-	rsubi	r5, r5, 0
+	rsub	r5, r5, r0
 	or	r3, r5, r0
 	rtsd	r15, 0x08
 	nop
