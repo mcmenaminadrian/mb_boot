@@ -333,7 +333,10 @@ end_of_PTE_look:
 	ori	r3, r0, DUMMY_ZONE
 	beqid	r6, PTE_entry_empty
 	nop
-
+	
+	/* Push r5 on to stack */
+	addik	r1, r1, -4
+	sw	r5, r1, r0
 	andi	r5, r6, PAGE4KMASK
 	or	r6, r0, r0
 	lw	r30, r5, r6
@@ -343,6 +346,9 @@ write_out:
 	rsub	r30, r6, r4
 	bneid	r30, write_out
 	lw	r30, r5, r6
+	/* Pop r5 */
+	lw	r5, r1, r0
+	addik	r1, r1, 0x04
 
 PTE_entry_empty:
 	/* now, fix up PTE entry */
@@ -535,7 +541,6 @@ sweep_stacked:
 	sw	r6, r1, r0
 	/* first of all - do we need to do this? */
 	ori	r4, r0, ENTRY_SIZE
-	muli	r4, r4, PTECNT - MAXPINNED
 	rsubi	r5, r4, STACK_BOTTOM
 	lbu	r6, r0, r5
 	andi	r6, r6, 0xC0	/* 2 highest bits */
