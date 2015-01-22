@@ -83,6 +83,7 @@ _zeroouttlb:
 	bgtid	r3, _zeroouttlb	/* Uses delay slot */
 	addik	r3, r3, -1
 .end _actualstart
+
 _setkernelpid:
 	mts	rpid, r0
 	nop
@@ -124,23 +125,21 @@ _setkernelpid:
 	ori	r4, r0, STACK_MAP_VIRT
 	mts	rslr, r4
 	ori	r4, r0, STACK_BOTTOM
-	/* one byte per LRU ref */
-	rsubi	r4, r0, PTECNT - MAXPINNED
 	mts	rshr, r4
 	/* set r1 as stack pointer */
-	addi	r4, r0, -3 
-	or	r1, r0, r4
+	ori	r1, r0, STACK_BOTTOM
 	/* order the LRU references */
-	addi	r3, r0, MAXPINNED 	/* start from here */
+	addi	r3, r0, r0	 	/* start from here */
 	addi	r4, r0, PTECNT		/* max PTEs */
 	addi	r5, r0, STACK_BOTTOM	/* write here */
+	ori	r6, r0, MAXPINNED
 
 zero_lru_stack:
-	rsubi	r6, r3, MAXPINNED
-	sb	r3, r5, r6
-	addi	r3, r0, 1
-	rsub	r6, r3, r4
-	bnei	r6, zero_lru_stack
+	sb	r6, r5, r3
+	addi	r3, r3, -1
+	addi	r6, r6, 1
+	rsub	r30, r6, r4
+	bnei	r30, zero_lru_stack
 	 
 
 turn_on_vm:
