@@ -129,7 +129,7 @@ _setkernelpid:
 	/* set r1 as stack pointer */
 	ori	r1, r0, STACK_BOTTOM
 	/* order the LRU references */
-	addi	r3, r0, r0	 	/* start from here */
+	add	r3, r0, r0	 	/* start from here */
 	addi	r4, r0, PTECNT		/* max PTEs */
 	addi	r5, r0, STACK_BOTTOM	/* write here */
 	ori	r6, r0, MAXPINNED
