@@ -407,7 +407,7 @@ loop_fix_up_tlb:
 	andi	r3, r3, PAGE4KMASK
 	ori	r3, r3, EX|WR
 	mts	rtlblo, r3
-	andi	r4, r4, VALID|PAGE4K
+	ori	r4, r4, VALID|PAGE4K
 	rted	r17, 0x0
 	mts	rtlbhi, r4
 
@@ -486,12 +486,12 @@ marking_loop:
 keep_on_marking:
 	addik	r5, r4, -1
 	muli	r5, r5, ENTRY_SIZE
-	rsubi	r5, r5, STACK_BOTTOM
+	addi	r5, r5, STACK_BOTTOM
 	lbu	r5, r5, r0
 	addik	r1, r1, -4
 	sw	r3, r1, r0
 	muli	r3, r4, ENTRY_SIZE
-	rsubi	r3, r3, STACK_BOTTOM
+	addi	r3, r3, STACK_BOTTOM
 	sb	r5, r3, r0
 	lw	r3, r1, r0
 	addik	r1, r1, 0x04
