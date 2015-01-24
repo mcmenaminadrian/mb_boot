@@ -128,6 +128,8 @@ _setkernelpid:
 	mts	rshr, r4
 	/* set r1 as stack pointer */
 	ori	r1, r0, STACK_BOTTOM
+	andi	r1, r1, 0xFFFFFFFC /* ensure word aligned */
+	addik	r1, r1, -PTECNT
 	/* order the LRU references */
 	add	r3, r0, r0	 	/* start from here */
 	addi	r4, r0, PTECNT		/* max PTEs */
@@ -475,7 +477,7 @@ mark_stacked:
 	rsubi	r3, r3, STACK_BOTTOM
 	lbu	r3, r3, r0 /* r3 now holds contents of entry to be demoted */
 marking_loop:
-	rsub	r5, r4, r6
+	add	r5, r4, r6
 	bnei	r5, keep_on_marking
 	ori	r3, r3, 0xC0
 	sb	r3, r4, r0
@@ -513,6 +515,7 @@ test_next_on_stack:
 	lbui	r5, r4, STACK_BOTTOM
 	andi	r5, r5, 0x40
 	beqid	r5, found_invalid_on_stack
+	nop
 	addik	r4, r4, -ENTRY_SIZE
 	brai	test_next_on_stack
 
@@ -540,7 +543,7 @@ sweep_stacked:
 	sw	r6, r1, r0
 	/* first of all - do we need to do this? */
 	ori	r4, r0, ENTRY_SIZE
-	rsubi	r5, r4, STACK_BOTTOM
+	rsubi	r5, r4, STACK_BOTTOM + 1
 	lbu	r6, r0, r5
 	andi	r6, r6, 0xC0	/* 2 highest bits */
 	bneid	r6, keep_sweeping_stack
