@@ -24,7 +24,7 @@
 	.set VM_ON, 0x2502
 	.set PAGE_SZ, 0x1000
 	.set MAXPINNED,	0x03	/* how many pinned TLBs/PTEs */
-	.set PTEUSED,	0x100	/* hi word is tlbpointer, lo is Y or N */
+	.set RNDSEED,	0x100
 	.set PTEMAXED,	0x104
 	.set CLOCK_SWEEP, 0x05
 	.set DUMMY_ZONE, 0xA0000
@@ -82,6 +82,7 @@ _zeroouttlb:
 	mts	rtlblo, r0
 	bgtid	r3, _zeroouttlb	/* Uses delay slot */
 	addik	r3, r3, -1
+	swi	r0, r0, RNDSEED /* seed with zero */
 .end _actualstart
 
 _setkernelpid:
@@ -416,8 +417,33 @@ keep_fixing_tlb:
 	rsub	r3, r5, r6
 	bnei	r3, loop_fix_up_tlb
 
-/* we have invalid TLB entries - so roll the clock on */
-	brai	handle_datatlb_miss
+pick_random_tlb:
+/* we have no invalid TLB entries - pick one at random */
+	addik	r1, r1, -4
+	sw	r4, r1, r0 
+try_again_random_tlb:
+	ori	r19, r0, simple_random
+	brald	r15, r19
+	nop
+
+	/* r3 has a pseudo random number */
+	andi	r3, r3, 0x0F
+	addik	r4, r3, -MAXPINNED
+	bltid	r4, try_again_random_tlb
+	nop
+	rsubi	r4, r3, TLBCNT
+	bleid	r4, try_again_random_tlb
+	nop
+got_random_tlb:
+/* zap randomly picked TLB */
+	mts	rtlbx, r3
+	mts	rtlbhi, r0
+/* go back */
+	or	r5, r3, r0
+	lw	r4, r1, r0
+	addik	r1, r1, 0x04
+	brai	loop_fix_up_tlb	
+	
 
 handle_insttlb_miss:
 
@@ -469,34 +495,41 @@ mark_stacked:
 	sw	r5, r1, r0
 	addik	r1, r1, -4
 	sw	r6, r1, r0
-	
-	ori	r6, r0, PTECNT - MAXPINNED
 
-	or	r4, r3, r0
-	muli	r3, r3, ENTRY_SIZE
-	rsubi	r3, r3, STACK_BOTTOM
-	lbu	r3, r3, r0 /* r3 now holds contents of entry to be demoted */
-marking_loop:
-	add	r5, r4, r6
-	bnei	r5, keep_on_marking
+	rsub	r4, r3, r0
+	muli	r5, r4, ENTRY_SIZE
+	addik	r3, r5, STACK_BOTTOM
+	lbu	r3, r3, r0	/* r3 has contents */
+	ori	r6, r0, PTECNT - MAXPINNED - 1 /* top of the entries */
+	rsub	r6, r6, r0	/* negative */
+
+	/* r3 has contents, r4 is (neg) entry number, r6 max (neg) entry no */
+loop_mark_stack:
+	rsub	r5, r4, r6
+	bneid	r5, keep_on_marking
+	nop
 	ori	r3, r3, 0xC0
-	sb	r3, r4, r0
-	brai	end_the_sweep /* we are done */
+	muli	r5, r4, ENTRY_SIZE
+	addik	r5, r5, STACK_BOTTOM
+	sb	r3, r5, r0
+	brai	end_the_sweep
 
 keep_on_marking:
 	addik	r5, r4, -1
 	muli	r5, r5, ENTRY_SIZE
-	addi	r5, r5, STACK_BOTTOM
+	addik	r5, r5, STACK_BOTTOM
 	lbu	r5, r5, r0
 	addik	r1, r1, -4
-	sw	r3, r1, r0
-	muli	r3, r4, ENTRY_SIZE
-	addi	r3, r3, STACK_BOTTOM
-	sb	r5, r3, r0
-	lw	r3, r1, r0
+	sw	r4, r1, r0
+	muli	r4, r4, ENTRY_SIZE
+	addik	r4, r4, STACK_BOTTOM
+	sb	r5, r4, r0
+	lw	r4, r1, r0
 	addik	r1, r1, 0x04
 	addik	r4, r4, -1
-	brai	marking_loop
+	brai	loop_mark_stack
+
+	
 	
 /* End of marking function */	
 
@@ -614,6 +647,7 @@ get_entry_for_match:
 	or	r5, r0, r0
 loop_getting:
 	lbu	r6, r4, r5
+	andi	r6, r6, 0x3F
 	rsub	r6, r6, r3
 	bnei	r6, keep_getting
 	rsub	r5, r5, r0
@@ -624,4 +658,24 @@ keep_getting:
 	addik	r5, r5, -1
 	brai	loop_getting
 	
-/* end of get_entry_for_match */	
+/* end of get_entry_for_match */
+
+/* simple random */
+
+simple_random:
+	/* returns pseudo random in r3 */
+	lwi	r3, r0, RNDSEED
+	addik	r1, r1, -4
+	sw	r4, r1, r0
+	or	r4, r3, r3
+	add	r3, r3, r3
+	add	r3, r3, r3
+	add	r3, r3, r4
+	addi	r3, r3, 0x01
+	swi	r3, r0, RNDSEED
+	lw	r4, r1, r0
+	rtsd	r15, 0x08
+	addik	r1, r1, 0x04
+
+/* end of simple random */ 
+
