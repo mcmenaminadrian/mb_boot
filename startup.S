@@ -307,8 +307,8 @@ look_in_PTE:
 	ori	r19, r0, mark_stacked /* so push it to back of LRU queue */
 	brald	r15, r19
 	nop
-	mfs	r3, rear
-	andi	r3, r3, PAGE4KMASK
+	mfs	r4, rear
+	andi	r4, r4, PAGE4KMASK
 	brai	fix_up_tlb 
 
 keep_looking_in_PTE:
@@ -487,7 +487,8 @@ keep_clearing_from_tlb:
 
 /* LRU subroutines follow */
 mark_stacked:
-	/* r3 has queue entry to be demoted */
+	/* IN: r3 has queue entry to be demoted */
+	/* OUT: r3 has PTE entry */
 	/* store r4, r5, r6 on stack */
 	addik	r1, r1, -4
 	sw	r4, r1, r0
@@ -512,6 +513,7 @@ loop_mark_stack:
 	muli	r5, r4, ENTRY_SIZE
 	addik	r5, r5, STACK_BOTTOM
 	sb	r3, r5, r0
+	andi	r3, r3, 0x3F
 	brai	end_the_sweep
 
 keep_on_marking:
@@ -575,9 +577,7 @@ sweep_stacked:
 	addik	r1, r1, -4
 	sw	r6, r1, r0
 	/* first of all - do we need to do this? */
-	ori	r4, r0, ENTRY_SIZE
-	rsubi	r5, r4, STACK_BOTTOM + 1
-	lbu	r6, r0, r5
+	lbui	r6, r0, STACK_BOTTOM
 	andi	r6, r6, 0xC0	/* 2 highest bits */
 	bneid	r6, keep_sweeping_stack
 end_the_sweep:
@@ -596,7 +596,8 @@ keep_sweeping_stack:	/* yes, we do */
 	lbui	r6, r5, STACK_BOTTOM
 next_sweeping_stack:
 	andi	r6, r6, 0x40			/* V bit only */
-	bneid	r6, still_sweeping_stack
+	beqid	r6, still_sweeping_stack
+	nop
 	/* clear from the TLB - if it's in there */
 	addik	r1, r1, -4
 	sw	r15, r1, r0
@@ -611,20 +612,28 @@ next_sweeping_stack:
 	sw	r27, r1, r0
 	addik	r1, r1, -4
 	sw	r29, r1, r0
+	addik	r1, r1, -4
+	sw	r5, r1, r0
+	addik	r1, r1, -4
+	sw	r3, r1, r0
 	ori	r6, r0, clear_from_tlb
 	brald	r15, r6
 	nop
 	/* fix the PTE entry too */
+	lw	r3, r1, r0
+	addik	r1, r1, 0x04
+	lw	r5, r1, r0
+	addik	r1, r1, 0x04
 	lw	r29, r1, r0
-	addik	r1, r1, 4
+	addik	r1, r1, 0x04
 	lw	r27, r1, r0
-	addik	r1, r1, 4
+	addik	r1, r1, 0x04
 	andi	r27, r27, ~VALID
 	sw	r27, r29, r0
 	lw	r6, r1, r0
-	addik	r1, r1, 4
+	addik	r1, r1, 0x04
 	lw	r15, r1, r0
-	addik	r1, r1, 4
+	addik	r1, r1, 0x04
 	andi	r6, r6, 0xBF
 	sbi	r6, r5, STACK_BOTTOM
 	addi	r3, r3, -1
