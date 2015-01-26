@@ -3,7 +3,7 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x20
+	.set PTECNT, 0x14
 	.set TLBCNT, 0x08
 	.set EX, 0x200
 	.set WR, 0x100
@@ -26,7 +26,7 @@
 	.set MAXPINNED,	0x03	/* how many pinned TLBs/PTEs */
 	.set RNDSEED,	0x100
 	.set PTEMAXED,	0x104
-	.set CLOCK_SWEEP, 0x05
+	.set CLOCK_SWEEP, 0x01
 	.set DUMMY_ZONE, 0xA0000
 	.set PAGE_SIZE, 0x1000
 	.set ENTRY_SIZE, 0x01
@@ -606,7 +606,7 @@ next_sweeping_stack:
 	sw	r6, r1, r0
 	andi	r6, r6, 0x3F
 	muli	r29, r6, PTE_SIZE
-	addik	r29, r6, SECOND_MAP_PHYS
+	addik	r29, r29, SECOND_MAP_PHYS
 	lwi	r27, r29, PTE_SIZE_HALF
 	addik	r1, r1, -4
 	sw	r27, r1, r0
@@ -641,7 +641,8 @@ next_sweeping_stack:
 still_sweeping_stack:
 	addi	r5, r5, -0x01
 	add	r6, r5, r4
-	bneid	r6, end_the_sweep		/* end of the stack */
+	beqid	r6, end_the_sweep		/* end of the stack */
+	nop
 	lbui	r6, r5, STACK_BOTTOM
 	brai	next_sweeping_stack
 
