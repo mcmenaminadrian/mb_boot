@@ -3,7 +3,7 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x14
+	.set PTECNT, 0x21
 	.set TLBCNT, 0x08
 	.set EX, 0x200
 	.set WR, 0x100
@@ -128,9 +128,7 @@ _setkernelpid:
 	ori	r4, r0, STACK_BOTTOM
 	mts	rshr, r4
 	/* set r1 as stack pointer */
-	ori	r1, r0, STACK_BOTTOM
-	andi	r1, r1, 0xFFFFFFFC /* ensure word aligned */
-	addik	r1, r1, -PTECNT
+	ori	r1, r0, 0xFFFFFF00 /*FIX ME*/
 	/* order the LRU references */
 	add	r3, r0, r0	 	/* start from here */
 	addi	r4, r0, PTECNT		/* max PTEs */
@@ -265,12 +263,19 @@ _hw_exception_handler:
 	bri 0
 
 handle_stream_exception:
+	bri 0
 handle_unaligned_data_exception:
+	bri 0
 handle_illegal_opcode:
+	bri 0
 handle_ibus_error:
+	bri 0
 handle_dbus_error:
+	bri 0
 handle_divide_error:
+	bri 0
 handle_fp_error:
+	bri 0
 handle_priv_or_stack_error:
 
 	bri 0
