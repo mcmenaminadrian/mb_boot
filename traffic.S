@@ -136127,6 +136127,7 @@ swi	r20, r0, 0xfefff380
 swi	r20, r0, 0xfefff384
 lwi	r20, r0, 0x4009bf8
 lhui	r20, r0, 0x4009bfc
+the_end:
 lw	r15, r1, r0
 rtsd	r15, 0x04
 addik	r1, r1, 0x04

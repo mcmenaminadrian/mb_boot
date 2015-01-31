@@ -3,7 +3,7 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x21
+	.set PTECNT, 0x08
 	.set TLBCNT, 0x08
 	.set EX, 0x200
 	.set WR, 0x100
@@ -100,7 +100,7 @@ _setkernelpid:
 	mts	rtlbhi, r4
 
 	/* setup TLB1 - page table space */
-	/* maps SECOND_MAP_PHYS <-> SECOND_MAP_VERT for 4k */
+	/* maps SECOND_MAP_PHYS <-> SECOND_MAP_VIRT for 4k */
 	ori	r11, r0, 0x01
 	mts	rtlbx, r11
 	ori	r4, r0, SECOND_MAP_PHYS|EX|WR
@@ -185,7 +185,7 @@ prep_ptes:
 	ori	r20, r0, 0x00
 
 /* We work on the basis we have (PTECNT - MAXPINNED) 4k frames */
-/* In physical addresses from 0x500000 onwards */
+/* In physical addresses from FRAME_BASE onwards */
 /* MAXPINNED entries first */
 	ori	r22, r0, MAXPINNED
 copy_pinned_tlbs:
@@ -634,7 +634,7 @@ next_sweeping_stack:
 	lw	r27, r1, r0
 	addik	r1, r1, 0x04
 	andi	r27, r27, ~VALID
-	sw	r27, r29, r0
+	swi	r27, r29, PTE_SIZE_HALF
 	lw	r6, r1, r0
 	addik	r1, r1, 0x04
 	lw	r15, r1, r0
