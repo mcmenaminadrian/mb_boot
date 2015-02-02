@@ -3,16 +3,18 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x08
+	.set PTECNT, 0x40
 	.set TLBCNT, 0x08
 	.set EX, 0x200
 	.set WR, 0x100
 	.set VALID, 0x40
+	.set PAGE1K, 0x000
 	.set PAGE4K, 0x080
 	.set PAGE64K, 0x180
 	.set PAGE4KMASK, 0xFFFFF000
+	.set PAGE1KMASK, 0xFFFFFC00
 	.set PAGE64KMASK, 0xFFFF0000
-	.set PAGE1M, 0x300	/* 0x380 for 16 MB, 0x300 4MB, 0x280 1MB */
+	.set PAGEBASE, 0x300	/* 0x380 for 16 MB, 0x300 4MB, 0x280 1MB */
 	.set PTE_SIZE, 0x08
 	.set PTE_SIZE_HALF, 0x04
 	.set SECOND_MAP_PHYS, 0x1000000
@@ -22,13 +24,14 @@
 	.set STACK_BOTTOM, 0xFFFFFFFF
 	.set FRAME_BASE, 0x8000000
 	.set VM_ON, 0x2502
-	.set PAGE_SZ, 0x1000
+	.set PAGE_SZ, 0x400	/* 0x1000 for 4096, 0x400 for 1024 */
 	.set MAXPINNED,	0x03	/* how many pinned TLBs/PTEs */
 	.set RNDSEED,	0x100
 	.set PTEMAXED,	0x104
+	.set HRDFAULT, 0x108
+	.set TTLFAULT, 0x10C
 	.set CLOCK_SWEEP, 0x01
 	.set DUMMY_ZONE, 0xA0000
-	.set PAGE_SIZE, 0x1000
 	.set ENTRY_SIZE, 0x01
 
 	.macro switchex
@@ -83,6 +86,8 @@ _zeroouttlb:
 	bgtid	r3, _zeroouttlb	/* Uses delay slot */
 	addik	r3, r3, -1
 	swi	r0, r0, RNDSEED /* seed with zero */
+	swi	r0, r0, TTLFAULT
+	swi	r0, r0, HRDFAULT
 .end _actualstart
 
 _setkernelpid:
@@ -91,12 +96,12 @@ _setkernelpid:
 	bri	4		/* sync required */
 
 	/* setup TLB0 */
-	/* 1 <-> mapping for 1MB page at 0x00 */
+	/* 1 <-> mapping for base page at 0x00 */
 	ori	r11, r0, 0x0000
 	mts	rtlbx, r11
 	ori	r4, r0, EX|WR
 	mts	rtlblo, r4
-	ori	r4, r0, VALID|PAGE1M 
+	ori	r4, r0, VALID|PAGEBASE 
 	mts	rtlbhi, r4
 
 	/* setup TLB1 - page table space */
@@ -105,7 +110,7 @@ _setkernelpid:
 	mts	rtlbx, r11
 	ori	r4, r0, SECOND_MAP_PHYS|EX|WR
 	mts	rtlblo, r4
-	ori	r4, r0, SECOND_MAP_VIRT|VALID|PAGE4K
+	ori	r4, r0, SECOND_MAP_VIRT|VALID|PAGE1K
 	mts	rtlbhi, r4
 
 	/* setup TLB2 - 64K stack */
@@ -285,6 +290,11 @@ handle_inststore_error:
 	bri 0
 
 handle_datatlb_miss:
+/* increase fault count */
+	lwi	r3, r0, TTLFAULT
+	addik	r3, r3, 0x1
+	swi	r3, r0, TTLFAULT
+/* mimic CLOCK */
 	ori	r3, r0, CLOCK_SWEEP 
 	ori	r19, r0, sweep_stacked 
 	brald	r15, r19
@@ -296,15 +306,15 @@ handle_datatlb_miss:
 	addik	r4, r4, SECOND_MAP_PHYS + PTE_SIZE_HALF
 
 	mfs	r5, rear	/* r5 has faulting address */
-	andi	r5, r5, PAGE4KMASK
+	andi	r5, r5, PAGE1KMASK
 
 look_in_PTE:
 	lw	r6, r4, r0	/* r6 has PTE data */
-	andi	r6, r6, PAGE4KMASK
+	andi	r6, r6, PAGE1KMASK
 	rsub	r6, r6, r5
 	bneid	r6, keep_looking_in_PTE
 	lw	r6, r4, r0	/* found the PTE entry so fix it up */
-	ori	r6, r6, VALID|PAGE4K
+	ori	r6, r6, VALID|PAGE1K
 	sw	r6, r4, r0
 	ori	r19, r0, get_entry_for_match 
 	brald	r15, r19
@@ -313,7 +323,7 @@ look_in_PTE:
 	brald	r15, r19
 	nop
 	mfs	r4, rear
-	andi	r4, r4, PAGE4KMASK
+	andi	r4, r4, PAGE1KMASK
 	brai	fix_up_tlb 
 
 keep_looking_in_PTE:
@@ -336,7 +346,7 @@ end_of_PTE_look:
 	muli	r5, r3, PTE_SIZE
 	addik	r5, r5, SECOND_MAP_PHYS + PTE_SIZE_HALF
 	lw	r6, r5, r0
-	ori	r4, r0, PAGE_SIZE
+	ori	r4, r0, PAGE_SZ
 	ori	r3, r0, DUMMY_ZONE
 	beqid	r6, PTE_entry_empty
 	nop
@@ -344,7 +354,7 @@ end_of_PTE_look:
 	/* Push r5 on to stack */
 	addik	r1, r1, -4
 	sw	r5, r1, r0
-	andi	r5, r6, PAGE4KMASK
+	andi	r5, r6, PAGE1KMASK
 	or	r6, r0, r0
 	lw	r30, r5, r6
 write_out:
@@ -360,15 +370,19 @@ write_out:
 PTE_entry_empty:
 	/* now, fix up PTE entry */
 	mfs	r6, rear
-	andi	r6, r6, PAGE4KMASK
-	ori	r6, r6, VALID|PAGE4K
+	andi	r6, r6, PAGE1KMASK
+	ori	r6, r6, VALID|PAGE1K
 	sw	r6, r5, r0
 
 	or	r6, r0, r0
 	mfs	r5, rear
-	andi	r5, r5, PAGE4KMASK
+	andi	r5, r5, PAGE1KMASK
 	lw	r30, r3, r6
 
+increment_hard_fault_count:
+	lwi	r7, r0, HRDFAULT
+	addik	r7, r7, 0x01
+	swi	r7, r0, HRDFAULT
 write_in:
 	sw	r30, r5, r6
 	addik	r6, r6, 0x04
@@ -387,7 +401,7 @@ write_in:
 	addik	r1, r1, 0x04 /* r3 indexes PTE entry */
 
 	mfs	r4, rear
-	andi	r4, r4, PAGE4KMASK
+	andi	r4, r4, PAGE1KMASK
 
 fix_up_tlb:
 	/* now have fixed the PTE but have to fix the TLBs */
@@ -410,10 +424,10 @@ loop_fix_up_tlb:
 	muli	r3, r3, PTE_SIZE
 	addik	r3, r3, SECOND_MAP_PHYS
 	lw	r3, r3, r0
-	andi	r3, r3, PAGE4KMASK
+	andi	r3, r3, PAGE1KMASK
 	ori	r3, r3, EX|WR
 	mts	rtlblo, r3
-	ori	r4, r4, VALID|PAGE4K
+	ori	r4, r4, VALID|PAGE1K
 	rted	r17, 0x0
 	mts	rtlbhi, r4
 
@@ -471,13 +485,13 @@ _exception_handler:
 /* clear_from_tlb -if tlb entry exists, mark it invalid */
 /* r27 holds data */
 clear_from_tlb:
-	andi	r27, r27, PAGE4KMASK
+	andi	r27, r27, PAGE1KMASK
 	ori	r3, r0, MAXPINNED
 	ori	r4, r0, TLBCNT
 loop_clear_from_tlb:
 	mts	rtlbx, r3
 	mfs	r6, rtlbhi
-	andi	r6, r6, PAGE4KMASK
+	andi	r6, r6, PAGE1KMASK
 	rsub	r5, r6, r27
 	bnei	r5, keep_clearing_from_tlb
 	rtsd	r15, 0x08	/* found a match so wipe it */
