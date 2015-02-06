@@ -3,8 +3,8 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x40
-	.set TLBCNT, 0x08
+	.set PTECNT, 0x30
+	.set TLBCNT, 0x30
 	.set EX, 0x200
 	.set WR, 0x100
 	.set VALID, 0x40
@@ -30,6 +30,7 @@
 	.set PTEMAXED,	0x104
 	.set HRDFAULT, 0x108
 	.set TTLFAULT, 0x10C
+	.set HARDONLY, 0x110
 	.set CLOCK_SWEEP, 0x01
 	.set DUMMY_ZONE, 0xA0000
 	.set ENTRY_SIZE, 0x01
@@ -86,8 +87,12 @@ _zeroouttlb:
 	bgtid	r3, _zeroouttlb	/* Uses delay slot */
 	addik	r3, r3, -1
 	swi	r0, r0, RNDSEED /* seed with zero */
-	swi	r0, r0, TTLFAULT
-	swi	r0, r0, HRDFAULT
+#	swi	r0, r0, TTLFAULT
+#	swi	r0, r0, HRDFAULT
+	ori	r3, r0, TLBCNT	/* test if PTE == TLB */
+	ori	r4, r0, PTECNT
+	rsub	r3, r3, r4
+	swi	r3, r0, HARDONLY
 .end _actualstart
 
 _setkernelpid:
@@ -291,14 +296,17 @@ handle_inststore_error:
 
 handle_datatlb_miss:
 /* increase fault count */
-	lwi	r3, r0, TTLFAULT
-	addik	r3, r3, 0x1
-	swi	r3, r0, TTLFAULT
+#	lwi	r3, r0, TTLFAULT
+#	addik	r3, r3, 0x1
+#	swi	r3, r0, TTLFAULT
 /* mimic CLOCK */
 	ori	r3, r0, CLOCK_SWEEP 
 	ori	r19, r0, sweep_stacked 
 	brald	r15, r19
 	nop
+	/* can we have a soft fault? */
+	lwi	r3, r0, HARDONLY
+	beqid	r3, end_of_PTE_look
 
 	/* now check if PTE addresses match */
 	ori	r3, r0, MAXPINNED	/* r3 is index to PTE */
@@ -380,9 +388,9 @@ PTE_entry_empty:
 	lw	r30, r3, r6
 
 increment_hard_fault_count:
-	lwi	r7, r0, HRDFAULT
-	addik	r7, r7, 0x01
-	swi	r7, r0, HRDFAULT
+#	lwi	r7, r0, HRDFAULT
+#	addik	r7, r7, 0x01
+#	swi	r7, r0, HRDFAULT
 write_in:
 	sw	r30, r5, r6
 	addik	r6, r6, 0x04
