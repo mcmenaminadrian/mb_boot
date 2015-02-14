@@ -21,11 +21,13 @@
 	.set SECOND_MAP_VIRT, 0x2000000
 	.set STACK_MAP_PHYS, 0xFFFF0000
 	.set STACK_MAP_VIRT, 0xFFFF0000
+	.set BITMAPS_PHYS, 0x70000000
+	.set BITMAPS_VIRT, 0x70000000
 	.set STACK_BOTTOM, 0xFFFFFFFF
 	.set FRAME_BASE, 0x8000000
 	.set VM_ON, 0x2502
 	.set PAGE_SZ, 0x400	/* 0x1000 for 4096, 0x400 for 1024 */
-	.set MAXPINNED,	0x03	/* how many pinned TLBs/PTEs */
+	.set MAXPINNED,	0x04	/* how many pinned TLBs/PTEs */
 	.set RNDSEED,	0x100
 	.set PTEMAXED,	0x104
 	.set HRDFAULT, 0x108
@@ -130,6 +132,19 @@ _setkernelpid:
 	andi	r4, r4, PAGE64KMASK
 	ori	r4, r4, VALID|PAGE64K
 	mts	rtlbhi, r4
+
+	/* setup BITMAPs space - 64k space */
+	ori	r11, r0, 0x03
+	mts	rtlbx, r11
+	ori	r4, r0, BITMAPS_PHYS
+	andi	r4, r4, PAGE64KMASK
+	ori	r4, r4, WR
+	mts	rtlblo, r4
+
+	ori	r4, r0, BITMAPS_VIRT
+	andi	r4, r4, PAGE64KMASK
+	ori	r4, r4, VALID|PAGE64K
+	mts	rtlbhi, r4 
 
 	/* set stack pointer registers */
 	/* we are going to place LRU queue right at the very bottom of stack */
