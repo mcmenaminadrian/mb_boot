@@ -36,6 +36,10 @@
 	.set CLOCK_SWEEP, 0x01
 	.set DUMMY_ZONE, 0xA0000
 	.set ENTRY_SIZE, 0x01
+	.set BITS16, 0x04
+	.set BITS32, 0x05
+	.set BYTES_8, 0x07
+	.set TO_BYTES_32, 0x02
 
 	.macro switchex
 	addi	r5, r5, 0x01
@@ -517,6 +521,14 @@ loop_clear_from_tlb:
 	andi	r6, r6, PAGE1KMASK
 	rsub	r5, r6, r27
 	bnei	r5, keep_clearing_from_tlb
+	/* found a match - so flush the bitmap */
+	addik	r1, r1, -4
+	sw	r15, r1, r0
+	ori	r6, r0, flush_bitmap
+	brald	r15, r6
+	nop
+	lw	r15, r1, r0
+	addik	r1, r1, 0x04
 	rtsd	r15, 0x08	/* found a match so wipe it */
 	mts	rtlbhi, r0
 keep_clearing_from_tlb:
@@ -731,3 +743,23 @@ simple_random:
 
 /* end of simple random */ 
 
+/* flush_bitmap */
+/* r3 has TLB to flush */
+flush_bitmap:
+	addik r1, r1, -4
+	sw	r4, r1, r0
+	ori	r4, r0, PAGE_SZ
+	bsrai	r4, r4, BYTES_8
+	/* FIXME: This only allows for fixed page sizes */
+	mul	r3, r3, r4
+	bsrai	r4, r4, TO_BYTES_32 /* writing 32 bits at a time */
+	addik	r3, r3, BITMAPS_PHYS
+flush_bitmap_loop:
+	sw	r0, r3, r0
+	addi	r4, r4, -1
+	bneid	r4, flush_bitmap_loop
+	addi	r3, r3, 0x04
+	lw	r4, r1, r0
+	rtsd	r15, 0x08
+	addik	r1, r1, 0x04
+/* end of flush bitmap */	
