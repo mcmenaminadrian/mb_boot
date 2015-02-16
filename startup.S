@@ -3,8 +3,8 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x30
-	.set TLBCNT, 0x30
+	.set PTECNT, 0x20
+	.set TLBCNT, 0x20
 	.set EX, 0x200
 	.set WR, 0x100
 	.set VALID, 0x40
@@ -255,6 +255,10 @@ exit:
 
 _interrupt_handler:
 	ori	r20, r0, 0x01
+how_do:
+	nop
+	rtsd	r14, 0x04
+	nop
 	bri	0
 
 
@@ -746,7 +750,7 @@ simple_random:
 /* flush_bitmap */
 /* r3 has TLB to flush */
 flush_bitmap:
-	addik r1, r1, -4
+	addik 	r1, r1, -4
 	sw	r4, r1, r0
 	ori	r4, r0, PAGE_SZ
 	bsrai	r4, r4, BYTES_8
