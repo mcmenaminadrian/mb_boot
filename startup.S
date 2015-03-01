@@ -40,6 +40,8 @@
 	.set BITS32, 0x05
 	.set BYTES_8, 0x07
 	.set TO_BYTES_32, 0x02
+	.set BYTE_INDEX, 4 /* 4 for 16 bytes, 6 for 64 bytes etc */
+	.set BYTE_MULTI, 10 - BYTE_INDEX
 
 	.macro switchex
 	addi	r5, r5, 0x01
@@ -751,7 +753,7 @@ flush_bitmap:
 	addik 	r1, r1, -4
 	sw	r4, r1, r0
 	ori	r4, r0, PAGE_SZ
-	bsrai	r4, r4, BYTES_8
+	bsrai	r4, r4, BYTE_MULTI
 	/* FIXME: This only allows for fixed page sizes */
 	mul	r3, r3, r4
 	bsrai	r4, r4, TO_BYTES_32 /* writing 32 bits at a time */
