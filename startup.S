@@ -254,13 +254,11 @@ exit:
 .end exit
 
 _interrupt_handler:
-	ori	r20, r0, 0x01
+	nop
 how_do:
 	nop
-	rtsd	r14, 0x04
+	rtid	r14, 0x0
 	nop
-	bri	0
-
 
 _hw_exception_handler:
 	mfs	r3, resr
