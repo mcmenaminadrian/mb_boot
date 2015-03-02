@@ -379,26 +379,34 @@ end_of_PTE_look:
 	lw	r6, r5, r0
 	ori	r4, r0, PAGE_SZ
 	ori	r3, r0, DUMMY_ZONE
-	beqid	r6, PTE_entry_empty
-	nop
-	
 	/* Push r5 on to stack */
 	addik	r1, r1, -4
 	sw	r5, r1, r0
+	beqid	r6, PTE_entry_empty
+	nop
+	
 	andi	r5, r6, PAGE1KMASK
 	or	r6, r0, r0
 	lw	r30, r5, r6
-write_out:
+write_out_bitmapped:
 	sw	r30, r3, r6
 	addik	r6, r6, 0x04
 	rsub	r30, r6, r4
 	bneid	r30, write_out
 	lw	r30, r5, r6
+
+PTE_entry_empty:
+	/* which segment are we in */
+	mfs	r5, rear
+	ori	r7, r0, 1
+	ori	r8, r0, 0xFFFFFFFF
+	xori	r8, r8, PAGE1KMASK
+	or	r9, r5, r8
+	/* set R9 to segment to mark and load */
+	bsrli	r9, r9, BYTE_INDEX
 	/* Pop r5 */
 	lw	r5, r1, r0
 	addik	r1, r1, 0x04
-
-PTE_entry_empty:
 	/* now, fix up PTE entry */
 	mfs	r6, rear
 	andi	r6, r6, PAGE1KMASK
@@ -414,7 +422,8 @@ increment_hard_fault_count:
 #	lwi	r7, r0, HRDFAULT
 #	addik	r7, r7, 0x01
 #	swi	r7, r0, HRDFAULT
-write_in:
+write_in_bitmapped:
+	
 	sw	r30, r5, r6
 	addik	r6, r6, 0x04
 	rsub	r30, r6, r4
