@@ -378,15 +378,53 @@ end_of_PTE_look:
 	addik	r5, r5, SECOND_MAP_PHYS + PTE_SIZE_HALF
 	lw	r6, r5, r0
 	ori	r4, r0, PAGE_SZ
-	ori	r3, r0, DUMMY_ZONE
+	ori	r8, r0, DUMMY_ZONE
 	/* Push r5 on to stack */
 	addik	r1, r1, -4
 	sw	r5, r1, r0
 	beqid	r6, PTE_entry_empty
 	nop
-	
+
+	/* now write out those bits marked as loaded */
+	/* r5 points to 'local' memory, r8 to remote */
+	/* r6 traverses, r7 points to bitmap, r9 traveses bitmap */	
+	/* r10 bitmap data, r11 on bit, r12 counter */
+	ori	r7, r0, PAGE_SZ
+	bsrai	r7, r7, BYTE_MULTI
+	mul	r7, r7, r3
+	addik	r7, r7, BITMAPS_PHYS
+	or	r9, r0, r0
+
 	andi	r5, r6, PAGE1KMASK
 	or	r6, r0, r0
+	lw	r10, r7, r9
+	ori	r11, r0, 0x01
+	ori	r20, r0, 0x01
+	bsll	r20, BYTE_INDEX
+start_write_out:
+	or	r12, r0, r0
+	and	r19, r10, r11
+	beqid	r19, advance_count
+	bsrll	r11, 0x01
+	lw	r30, r5, r6
+write_out_bitmapped:
+	sw	r30, r3, r6
+	addik	r6, r6, 0x04
+	rsub	r20, r20, 0x04
+	bneid	r20, write_out_bitmapped
+	lw	r30, r5, r6
+	bri	bit_roll	
+advance_count:
+	ori	r20, r0, 0x01
+	bsll	r20, BYTE_INDEX
+	addik	r6, r6, r20
+bit_roll:
+	
+
+	
+	
+	 
+
 	lw	r30, r5, r6
 write_out_bitmapped:
 	sw	r30, r3, r6
@@ -805,8 +843,3 @@ mark_bitmap:
 	rtsd	r15, 0x08
 	sb	r30, r5, r9
 /* end of mark bitmap */
-
-/* bitmap marked */
-
-
-		
