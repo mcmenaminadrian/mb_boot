@@ -387,52 +387,52 @@ end_of_PTE_look:
 
 	/* now write out those bits marked as loaded */
 	/* r5 points to 'local' memory, r8 to remote */
-	/* r6 traverses, r7 points to bitmap, r9 traveses bitmap */	
-	/* r10 bitmap data, r11 on bit, r12 counter */
+	/* r7 points to bitmap */
 	ori	r7, r0, PAGE_SZ
-	bsrai	r7, r7, BYTE_MULTI
+	bsrli	r7, r7, BYTE_MULTI
+	or	r9, r0, r7
+	or	r10, r0, r0
+	/* r10 size of block in bytes */
+	bslli	r10, r10, BYTE_MULTI
+	/* r9 counts number of bits to check */
+	bsll	r9, r9, 0x3
 	mul	r7, r7, r3
+	/* r7 points to bitmap */
 	addik	r7, r7, BITMAPS_PHYS
-	or	r9, r0, r0
 
 	andi	r5, r6, PAGE1KMASK
+	/* r6 traverses memory */
 	or	r6, r0, r0
-	lw	r10, r7, r9
-	ori	r11, r0, 0x01
-	ori	r20, r0, 0x01
-	bsll	r20, BYTE_INDEX
-start_write_out:
-	or	r12, r0, r0
-	and	r19, r10, r11
-	beqid	r19, advance_count
-	bsrll	r11, 0x01
+	or	r11, r0, r0
+	ori	r12, r0, r0
+	
+	lb	r19, r7, r11
+roll_on:
+	and	r20, r19, 0x01
+	beqid	r20, next_bit
+	addik	r12, r12, 0x01
+next_copy:
 	lw	r30, r5, r6
-write_out_bitmapped:
 	sw	r30, r3, r6
+	rsub	r30, r10, r6
+	bneid	r30, next_copy
 	addik	r6, r6, 0x04
-	rsub	r20, r20, 0x04
-	bneid	r20, write_out_bitmapped
-	lw	r30, r5, r6
-	bri	bit_roll	
-advance_count:
-	ori	r20, r0, 0x01
-	bsll	r20, BYTE_INDEX
-	addik	r6, r6, r20
-bit_roll:
+next_bit:
+	addk	r5, r5, r10
+	addk	r3, r3, r10
+	or	r6, r0, r0
+	rsubi	r30, r12, 0x08
+	bneid	r30, test_empty
+	nop
+	addik	r11, r11, 0x01
+	lb	r19, r7, r11
+test_empty:
+	andi	r30, r19, 0XFF
+	beqid	r30, PTE_entry_empty
+	brrl	r19, 0x01
+	brid	roll_on	
+	nop	
 	
-
-	
-	
-	 
-
-	lw	r30, r5, r6
-write_out_bitmapped:
-	sw	r30, r3, r6
-	addik	r6, r6, 0x04
-	rsub	r30, r6, r4
-	bneid	r30, write_out
-	lw	r30, r5, r6
-
 PTE_entry_empty:
 	/* which segment are we in */
 	mfs	r5, rear
