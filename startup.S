@@ -395,20 +395,18 @@ end_of_PTE_look:
 	/* r10 size of block in bytes */
 	bslli	r10, r10, BYTE_MULTI
 	/* r9 counts number of bits to check */
-	bsll	r9, r9, 0x3
+	bslli	r9, r9, 0x3
 	mul	r7, r7, r3
 	/* r7 points to bitmap */
-	addik	r7, r7, BITMAPS_PHYS
-
+	addi	r7, r7, BITMAPS_PHYS
 	andi	r5, r6, PAGE1KMASK
 	/* r6 traverses memory */
 	or	r6, r0, r0
 	or	r11, r0, r0
-	ori	r12, r0, r0
-	
-	lb	r19, r7, r11
+	or	r12, r0, r0
+	lbu	r19, r7, r11
 roll_on:
-	and	r20, r19, 0x01
+	andi	r20, r19, 0x01
 	beqid	r20, next_bit
 	addik	r12, r12, 0x01
 next_copy:
@@ -424,12 +422,12 @@ next_bit:
 	rsubi	r30, r12, 0x08
 	bneid	r30, test_empty
 	nop
-	addik	r11, r11, 0x01
-	lb	r19, r7, r11
+	addi	r11, r11, 0x01
+	lbu	r19, r7, r11
 test_empty:
 	andi	r30, r19, 0XFF
 	beqid	r30, PTE_entry_empty
-	brrl	r19, 0x01
+	bsrli	r19, r19, 0x01
 	brid	roll_on	
 	nop	
 	
