@@ -513,6 +513,7 @@ loop_fix_up_tlb:
 	ori	r4, r4, VALID|PAGE1K
 	ori	r19, r0, mark_bitmap
 	brald	r15, r19
+	nop
 	rted	r17, 0x0
 	mts	rtlbhi, r4
 
