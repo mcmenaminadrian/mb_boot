@@ -426,8 +426,8 @@ next_bit:
 	addi	r11, r11, 0x01
 	lbu	r19, r7, r11
 test_empty:
-	andi	r30, r19, 0XFF
-	beqid	r30, PTE_entry_empty
+	andi	r30, r19, 0xFF
+	beqid	r30, clean_bitmap 
 	bsrli	r19, r19, 0x01
 	brid	roll_on	
 	nop
