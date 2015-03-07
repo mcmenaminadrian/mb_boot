@@ -399,6 +399,7 @@ end_of_PTE_look:
 	mul	r7, r7, r3
 	/* r7 points to bitmap */
 	addi	r7, r7, BITMAPS_PHYS
+	/* set r5 to page address for local memory */
 	andi	r5, r6, PAGE1KMASK
 	/* r6 traverses memory */
 	or	r6, r0, r0
@@ -411,7 +412,7 @@ roll_on:
 	addik	r12, r12, 0x01
 next_copy:
 	lw	r30, r5, r6
-	sw	r30, r3, r6
+	sw	r30, r8, r6
 	rsub	r30, r10, r6
 	bneid	r30, next_copy
 	addik	r6, r6, 0x04
@@ -439,8 +440,8 @@ PTE_entry_empty:
 	and	r9, r5, r8
 	/* set R9 to segment to mark and load */
 	bsrli	r9, r9, BYTE_INDEX
-	andi	r7, r9, 0x07	/* bit offset */
-	bsrli	r9, r9, 0x03	/* byte offset */
+//	andi	r7, r9, 0x07	/* bit offset */
+//	bsrli	r9, r9, 0x03	/* byte offset */
 	/* Pop r5 */
 	lw	r5, r1, r0
 	addik	r1, r1, 0x04
@@ -451,30 +452,26 @@ PTE_entry_empty:
 	sw	r6, r5, r0
 
 	ori	r8, r0, 1
-	bslli	r8, r8, BYTE_INDEX - 1
+	bslli	r8, r8, BYTE_INDEX
 
 	/* start load */
 increment_hard_fault_count:
 #	lwi	r7, r0, HRDFAULT
 #	addik	r7, r7, 0x01
 #	swi	r7, r0, HRDFAULT
-
-	or	r4, r0, r8
+	
 	mul	r6, r9, r8
-	bsrli	r6, r6, 0x03
-	mul	r30, r7, r8
-	add	r6, r6, r30 
-
+	ori	r10, r0, DUMMY_ZONE
 	mfs	r5, rear
 	andi	r5, r5, PAGE1KMASK
-	lw	r30, r3, r6
+	lw	r30, r5, r6
 
 write_in_bitmapped:
-	sw	r30, r5, r6
-	addik	r4, r4, -4
+	sw	r30, r10, r6
+	addik	r8, r8, -4
 	addik	r6, r6, 0x04
-	bneid	r4, write_in_bitmapped
-	lw	r30, r3, r6
+	bneid	r8, write_in_bitmapped
+	lw	r30, r5, r6
 	
 
 	lw	r4, r1, r0
