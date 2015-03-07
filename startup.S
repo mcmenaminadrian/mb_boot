@@ -41,7 +41,6 @@
 	.set BYTES_8, 0x07
 	.set TO_BYTES_32, 0x02
 	.set BYTE_INDEX, 4 /* 4 for 16 bytes, 6 for 64 bytes etc */
-	.set BYTE_MULTI, 10 - BYTE_INDEX
 
 	.macro switchex
 	addi	r5, r5, 0x01
@@ -389,11 +388,11 @@ end_of_PTE_look:
 	/* r5 points to 'local' memory, r8 to remote */
 	/* r7 points to bitmap */
 	ori	r7, r0, PAGE_SZ
-	bsrli	r7, r7, BYTE_MULTI
+	bsrli	r7, r7, BYTE_INDEX
 	or	r9, r0, r7
-	or	r10, r0, r0
+	ori	r10, r0, 1
 	/* r10 size of block in bytes */
-	bslli	r10, r10, BYTE_MULTI
+	bslli	r10, r10, BYTE_INDEX
 	/* r9 counts number of bits to check */
 	bslli	r9, r9, 0x3
 	mul	r7, r7, r3
@@ -511,6 +510,7 @@ loop_fix_up_tlb:
 	ori	r3, r3, EX|WR
 	mts	rtlblo, r3
 	ori	r4, r4, VALID|PAGE1K
+debug:
 	ori	r19, r0, mark_bitmap
 	brald	r15, r19
 	nop
@@ -808,7 +808,7 @@ flush_bitmap:
 	addik 	r1, r1, -4
 	sw	r4, r1, r0
 	ori	r4, r0, PAGE_SZ
-	bsrai	r4, r4, BYTE_MULTI
+	bsrai	r4, r4, BYTE_INDEX
 	/* FIXME: This only allows for fixed page sizes */
 	mul	r3, r3, r4
 	bsrai	r4, r4, TO_BYTES_32 /* writing 32 bits at a time */
@@ -828,7 +828,7 @@ flush_bitmap_loop:
 mark_bitmap:
 	/* r4 invariant, rest can change */
 	ori	r3, r0, PAGE_SZ
-	bsrai	r3, r3, BYTE_MULTI
+	bsrai	r3, r3, BYTE_INDEX
 	mul	r5, r5, r3
 	addik	r5, r5, BITMAPS_PHYS
 	ori	r3, r0, 1
