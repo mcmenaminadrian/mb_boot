@@ -383,16 +383,15 @@ end_of_PTE_look:
 	sw	r5, r1, r0
 	beqid	r6, PTE_entry_empty
 	nop
-
+debug:
 	/* now write out those bits marked as loaded */
 	/* r5 points to 'local' memory, r8 to remote */
 	/* r7 points to bitmap */
-	ori	r7, r0, PAGE_SZ
-	bsrli	r7, r7, BYTE_INDEX
+	bsrli	r7, r4, BYTE_INDEX
 	or	r9, r0, r7
 	ori	r10, r0, 1
 	/* r10 size of block in bytes */
-	bslli	r10, r10, BYTE_INDEX
+	bslli	r10, r10, BYTE_INDEX - 3
 	/* r9 counts number of bits to check */
 	bslli	r9, r9, 0x3
 	mul	r7, r7, r3
@@ -510,7 +509,6 @@ loop_fix_up_tlb:
 	ori	r3, r3, EX|WR
 	mts	rtlblo, r3
 	ori	r4, r4, VALID|PAGE1K
-debug:
 	ori	r19, r0, mark_bitmap
 	brald	r15, r19
 	nop
