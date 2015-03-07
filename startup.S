@@ -436,7 +436,7 @@ PTE_entry_empty:
 	mfs	r5, rear
 	ori	r8, r0, 0xFFFFFFFF
 	xori	r8, r8, PAGE1KMASK
-	or	r9, r5, r8
+	and	r9, r5, r8
 	/* set R9 to segment to mark and load */
 	bsrli	r9, r9, BYTE_INDEX
 	andi	r7, r9, 0x07	/* bit offset */
