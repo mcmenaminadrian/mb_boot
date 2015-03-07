@@ -381,6 +381,7 @@ end_of_PTE_look:
 	/* Push r5 on to stack */
 	addik	r1, r1, -4
 	sw	r5, r1, r0
+debug2:
 	beqid	r6, PTE_entry_empty
 	nop
 debug:
@@ -438,6 +439,8 @@ clean_bitmap:
 	ori	r6, r0, flush_bitmap
 	brald	r15, r6
 	nop
+	lw	r15, r1, r0
+	addik	r1, r1, 0x04
 	
 PTE_entry_empty:
 	/* which segment are we in */
@@ -587,8 +590,6 @@ loop_clear_from_tlb:
 	andi	r6, r6, PAGE1KMASK
 	rsub	r5, r6, r27
 	bnei	r5, keep_clearing_from_tlb
-	lw	r15, r1, r0
-	addik	r1, r1, 0x04
 	rtsd	r15, 0x08	/* found a match so wipe it */
 	mts	rtlbhi, r0
 keep_clearing_from_tlb:
