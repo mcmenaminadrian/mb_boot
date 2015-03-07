@@ -381,7 +381,6 @@ end_of_PTE_look:
 	/* Push r5 on to stack */
 	addik	r1, r1, -4
 	sw	r5, r1, r0
-debug2:
 	beqid	r6, PTE_entry_empty
 	nop
 debug:
@@ -394,7 +393,9 @@ debug:
 	/* r10 size of block in bytes */
 	bslli	r10, r10, BYTE_INDEX
 	/* r9 counts number of bits to check */
-	bslli	r9, r9, 0x3
+	or	r9, r7, r0
+	/* r3 indexes PTE entry */
+	bsrli	r7, r7, 0x03	/* bytes */
 	mul	r7, r7, r3
 	/* r7 points to bitmap */
 	addi	r7, r7, BITMAPS_PHYS
