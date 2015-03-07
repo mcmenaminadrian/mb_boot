@@ -391,7 +391,7 @@ debug:
 	or	r9, r0, r7
 	ori	r10, r0, 1
 	/* r10 size of block in bytes */
-	bslli	r10, r10, BYTE_INDEX - 3
+	bslli	r10, r10, BYTE_INDEX
 	/* r9 counts number of bits to check */
 	bslli	r9, r9, 0x3
 	mul	r7, r7, r3
@@ -428,7 +428,16 @@ test_empty:
 	beqid	r30, PTE_entry_empty
 	bsrli	r19, r19, 0x01
 	brid	roll_on	
-	nop	
+	nop
+clean_bitmap:	
+	/* found a match - so flush the bitmap */
+	/* cheat read r3 <- r5 off stack */
+	lw	r3, r1, r0
+	addik	r1, r1, -4
+	sw	r15, r1, r0
+	ori	r6, r0, flush_bitmap
+	brald	r15, r6
+	nop
 	
 PTE_entry_empty:
 	/* which segment are we in */
@@ -578,12 +587,6 @@ loop_clear_from_tlb:
 	andi	r6, r6, PAGE1KMASK
 	rsub	r5, r6, r27
 	bnei	r5, keep_clearing_from_tlb
-	/* found a match - so flush the bitmap */
-	addik	r1, r1, -4
-	sw	r15, r1, r0
-	ori	r6, r0, flush_bitmap
-	brald	r15, r6
-	nop
 	lw	r15, r1, r0
 	addik	r1, r1, 0x04
 	rtsd	r15, 0x08	/* found a match so wipe it */
@@ -801,7 +804,7 @@ simple_random:
 /* end of simple random */ 
 
 /* flush_bitmap */
-/* r3 has TLB to flush */
+/* r3 has PTE to flush */
 flush_bitmap:
 	addik 	r1, r1, -4
 	sw	r4, r1, r0
