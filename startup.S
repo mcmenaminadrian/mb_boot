@@ -440,8 +440,6 @@ PTE_entry_empty:
 	and	r9, r5, r8
 	/* set R9 to segment to mark and load */
 	bsrli	r9, r9, BYTE_INDEX
-//	andi	r7, r9, 0x07	/* bit offset */
-//	bsrli	r9, r9, 0x03	/* byte offset */
 	/* Pop r5 */
 	lw	r5, r1, r0
 	addik	r1, r1, 0x04
@@ -472,8 +470,9 @@ write_in_bitmapped:
 	addik	r6, r6, 0x04
 	bneid	r8, write_in_bitmapped
 	lw	r30, r5, r6
-	
 
+	andi	r7, r9, 0x07	/* bit offset */
+	bsrli	r9, r9, 0x03	/* byte offset */
 	lw	r4, r1, r0
 	addik	r1, r1, 0x04
 
