@@ -831,7 +831,7 @@ flush_bitmap_loop:
 mark_bitmap:
 	/* r4 invariant, rest can change */
 	ori	r3, r0, PAGE_SZ
-	bsrai	r3, r3, BYTE_INDEX
+	bsrai	r3, r3, BYTE_INDEX + 3
 	mul	r5, r5, r3
 	addik	r5, r5, BITMAPS_PHYS
 	ori	r3, r0, 1
