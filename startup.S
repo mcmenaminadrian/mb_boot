@@ -34,7 +34,7 @@
 	.set TTLFAULT, 0x10C
 	.set HARDONLY, 0x110
 	.set CLOCK_SWEEP, 0x01
-	.set DUMMY_ZONE, 0xA0000
+	.set DUMMY_ZONE, 0xA000000
 	.set ENTRY_SIZE, 0x01
 	.set BITS16, 0x04
 	.set BITS32, 0x05
@@ -810,7 +810,7 @@ flush_bitmap:
 	addik 	r1, r1, -4
 	sw	r4, r1, r0
 	ori	r4, r0, PAGE_SZ
-	bsrai	r4, r4, BYTE_INDEX + 3
+	bsrli	r4, r4, BYTE_INDEX + 3
 	bneid	r4, still_flushing
 	nop
 	ori	r4, r0, 0x01
@@ -829,11 +829,11 @@ flush_bitmap_loop:
 /* end of flush bitmap */
 
 /* mark bitmap */
-/* r5 has TLB index, r9 byte offset, r7 bit offset */
+/* r5 has PTE index, r9 byte offset, r7 bit offset */
 mark_bitmap:
 	/* r4 invariant, rest can change */
 	ori	r3, r0, PAGE_SZ
-	bsrai	r3, r3, BYTE_INDEX + 3
+	bsrli	r3, r3, BYTE_INDEX + 3
 	mul	r5, r5, r3
 	addik	r5, r5, BITMAPS_PHYS
 	ori	r3, r0, 1
