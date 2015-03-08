@@ -426,7 +426,7 @@ next_bit:
 	rsubi	r30, r12, 0x08
 	bneid	r30, test_empty
 	nop
-	rsubi	r30, r11, r9
+	rsub	r30, r11, r9
 	beqid	r30, clean_bitmap
 	or	r12, r0, r0
 	addi	r11, r11, 0x01
