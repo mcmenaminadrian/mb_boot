@@ -392,10 +392,14 @@ debug:
 	ori	r10, r0, 1
 	/* r10 size of block in bytes */
 	bslli	r10, r10, BYTE_INDEX
-	/* r9 counts number of bits to check */
-	or	r9, r7, r0
+	/* r9 counts number of bytes to check */
 	/* r3 indexes PTE entry */
 	bsrli	r7, r7, 0x03	/* bytes */
+	bneid	r7, copy_to_r9
+	or	r11, r0, r0 /* use delay slot to zero r11 for later use */
+	ori	r7, r7, 0x01
+copy_to_r9:
+	or	r9, r0, r7
 	mul	r7, r7, r3
 	/* r7 points to bitmap */
 	addi	r7, r7, BITMAPS_PHYS
@@ -403,7 +407,6 @@ debug:
 	andi	r5, r6, PAGE1KMASK
 	/* r6 traverses memory */
 	or	r6, r0, r0
-	or	r11, r0, r0
 	or	r12, r0, r0
 	lbu	r19, r7, r11
 roll_on:
@@ -418,16 +421,18 @@ next_copy:
 	addik	r6, r6, 0x04
 next_bit:
 	addk	r5, r5, r10
-	addk	r3, r3, r10
+	addk	r8, r8, r10
 	or	r6, r0, r0
 	rsubi	r30, r12, 0x08
 	bneid	r30, test_empty
 	nop
+	rsubi	r30, r11, r9
+	beqid	r30, clean_bitmap
+	or	r12, r0, r0
 	addi	r11, r11, 0x01
 	lbu	r19, r7, r11
 test_empty:
-	andi	r30, r19, 0xFF
-	beqid	r30, clean_bitmap 
+	beqid	r19, next_bit 
 	bsrli	r19, r19, 0x01
 	brid	roll_on	
 	nop
