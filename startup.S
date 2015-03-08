@@ -27,6 +27,7 @@
 	.set FRAME_BASE, 0x8000000
 	.set VM_ON, 0x2502
 	.set PAGE_SZ, 0x400	/* 0x1000 for 4096, 0x400 for 1024 */
+	.set PAGE_OFF, 0x0A	/* 0x0A for 1k, 0x0C for 4k */
 	.set MAXPINNED,	0x04	/* how many pinned TLBs/PTEs */
 	.set RNDSEED,	0x100
 	.set PTEMAXED,	0x104
@@ -255,11 +256,84 @@ exit:
 .end exit
 
 _interrupt_handler:
+/*	we get here with EAR holding a physical address	*/
+/*	we can from this straight to the bitmap		*/
+	addik	r1, r1, -4
+	sw	r3, r1, r0
+	addik	r1, r1, -4
+	sw	r9, r1, r0
+	addik	r1, r1, -4
+	sw	r7, r1, r0
+	addik	r1, r1, -4
+	sw	r6, r1, r0
+	mfs	r3, rear
+	rsubi	r3, r3, FRAME_BASE
+	or	r9, r3, r0
+	/* set r3 to PTE number */
+	bsrli	r3, r3, PAGE_OFF
+	xori	r9, r9, PAGE1KMASK
+	bsrli	r9, r9,	BYTE_INDEX
+	andi	r7, r9, 0x07	/* bit offset */
+	bsrli	r9, r9, 0x03	/* byte offset */
+	ori	r6, r0, is_bitmap_marked 
+	brald	r15, r6
 	nop
-how_do:
+	bneid	r3, end_interrupt
 	nop
+	/* bit not marked - have to load in memory */
+	addik	r1, r1, -4
+	sw	r5, r1, r0
+	addik	r1, r1, -4
+	sw	r7, r1, r0
+	addik	r1, r1, -4
+	sw	r30, r1, r0
+	mfs	r3, rear
+	rsubi	r3, r3, FRAME_BASE
+	bsrli	r3, r3, PAGE_OFF
+	/* now read in the addresses from the PTE */
+	mts	rtlbx, r3
+	addik	r1, r1, -4
+	sw	r3, r1, r0
+	/* r3 takes physical address */
+	mfs	r3, rtlblo
+	/* r6 takes virtual (dummy) address */
+	mfs	r6, rtlbhi
+	andi	r3, r3, PAGE1KMASK
+	andi	r6, r6, PAGE1KMASK
+	ori	r5, r5, 1
+	bslli	r5, r5, BYTE_INDEX + 3
+	bslli	r7, r7, BYTE_INDEX
+	add	r5, r5, r7
+	ori	r7, r0, 0x01
+	bslli	r7, r7, BYTE_INDEX
+interrupt_loop:
+	add	r3, r3, r5
+	add	r6, r6, r5
+	lw	r30, r3, r0
+	sw	r30, r6, r0
+	addik	r7, r7, -4
+	beqid	r7, interrupt_loop_done
+	addik	r5, r5, 0x04
+	brid	interrupt_loop
+	nop
+interrupt_loop_done:
+	lw	r7, r1, r0
+	addik	r1, r1, 0x04
+	lw	r5, r1, r0 /* swap r3 with r5 */
+	addik	r1, r1, 0x04
+	ori	r3, r0, mark_bitmap
+	brald	r15, r3
+	nop 
+end_interrupt:
+	lw	r6, r1, r0
+	addik	r1, r1, 0x04
+	lw	r7, r1, r0
+	addik	r1, r1, 0x04
+	lw	r9, r1, r0
+	addik	r1, r1, 0x04
+	lw	r3, r1, r0
 	rtid	r14, 0x0
-	nop
+	addik	r1, r1, 0x04
 
 _hw_exception_handler:
 	mfs	r3, resr
@@ -383,7 +457,6 @@ end_of_PTE_look:
 	sw	r5, r1, r0
 	beqid	r6, PTE_entry_empty
 	nop
-debug:
 	/* now write out those bits marked as loaded */
 	/* r5 points to 'local' memory, r8 to remote */
 	/* r7 points to bitmap */
@@ -834,6 +907,10 @@ mark_bitmap:
 	/* r4 invariant, rest can change */
 	ori	r3, r0, PAGE_SZ
 	bsrli	r3, r3, BYTE_INDEX + 3
+	bneid	r3, still_mark_bitmap
+	nop
+	ori	r3, r0, 1
+still_mark_bitmap:
 	mul	r5, r5, r3
 	addik	r5, r5, BITMAPS_PHYS
 	ori	r3, r0, 1
@@ -843,3 +920,32 @@ mark_bitmap:
 	rtsd	r15, 0x08
 	sb	r30, r5, r9
 /* end of mark bitmap */
+
+/* is bitmap marked */
+/* r3 has PTE index, r9 has byte offset, r7 bit offset */
+/* r3 returns non zero if bitmap marked */
+is_bitmap_marked:
+	addik	r1, r1, -4
+	sw	r4, r1, r0
+	addik	r1, r1, -4
+	sw	r5, r1, r0
+	ori	r4, r0, PAGE_SZ
+	bsrli	r4, r4, BYTE_INDEX + 3
+	bneid	r4, still_is_bitmap_marked
+	nop
+	ori	r4, r0, 1
+still_is_bitmap_marked:
+	mul	r3, r3, r4
+	addik	r3, r3, BITMAPS_PHYS
+	ori	r4, r0, 1
+	bsll	r4, r4, r7
+	lbu	r5, r3, r9
+	and	r3, r5, r4
+	lw	r5, r1, r0
+	addik	r1, r1, 0x04
+	lw	r4, r1, r0
+	rtsd	r15, 0x08
+	addik	r1, r1, 0x04
+/* end of bitmap 	
+
+	
