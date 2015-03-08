@@ -432,7 +432,6 @@ next_bit:
 	addi	r11, r11, 0x01
 	lbu	r19, r7, r11
 test_empty:
-	beqid	r19, next_bit 
 	bsrli	r19, r19, 0x01
 	brid	roll_on	
 	nop
