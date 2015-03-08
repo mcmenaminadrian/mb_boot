@@ -388,7 +388,6 @@ debug:
 	/* r5 points to 'local' memory, r8 to remote */
 	/* r7 points to bitmap */
 	bsrli	r7, r4, BYTE_INDEX
-	or	r9, r0, r7
 	ori	r10, r0, 1
 	/* r10 size of block in bytes */
 	bslli	r10, r10, BYTE_INDEX
@@ -426,10 +425,10 @@ next_bit:
 	rsubi	r30, r12, 0x08
 	bneid	r30, roll_on
 	bsrli	r19, r19, 0x01
+	addi	r11, r11, 0x01
 	rsub	r30, r11, r9
 	beqid	r30, clean_bitmap
 	or	r12, r0, r0
-	addi	r11, r11, 0x01
 	lbu	r19, r7, r11
 	brid	roll_on	
 	nop
