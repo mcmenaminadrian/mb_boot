@@ -424,15 +424,13 @@ next_bit:
 	addk	r8, r8, r10
 	or	r6, r0, r0
 	rsubi	r30, r12, 0x08
-	bneid	r30, test_empty
-	nop
+	bneid	r30, roll_on
+	bsrli	r19, r19, 0x01
 	rsub	r30, r11, r9
 	beqid	r30, clean_bitmap
 	or	r12, r0, r0
 	addi	r11, r11, 0x01
 	lbu	r19, r7, r11
-test_empty:
-	bsrli	r19, r19, 0x01
 	brid	roll_on	
 	nop
 clean_bitmap:	
