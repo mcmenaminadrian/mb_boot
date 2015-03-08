@@ -432,7 +432,7 @@ next_bit:
 	lbu	r19, r7, r11
 	brid	roll_on	
 	nop
-clean_bitmap:	
+clean_bitmap:
 	/* found a match - so flush the bitmap */
 	addik	r1, r1, -4
 	sw	r15, r1, r0
@@ -810,16 +810,18 @@ flush_bitmap:
 	addik 	r1, r1, -4
 	sw	r4, r1, r0
 	ori	r4, r0, PAGE_SZ
-	bsrai	r4, r4, BYTE_INDEX
+	bsrai	r4, r4, BYTE_INDEX + 3
+	bneid	r4, still_flushing
+	nop
+	ori	r4, r0, 0x01
 	/* FIXME: This only allows for fixed page sizes */
 	mul	r3, r3, r4
-	bsrai	r4, r4, TO_BYTES_32 /* writing 32 bits at a time */
 	addik	r3, r3, BITMAPS_PHYS
 flush_bitmap_loop:
-	sw	r0, r3, r0
+	sb	r0, r3, r0
 	addi	r4, r4, -1
 	bneid	r4, flush_bitmap_loop
-	addi	r3, r3, 0x04
+	addi	r3, r3, 0x01
 	lw	r4, r1, r0
 	rtsd	r15, 0x08
 	addik	r1, r1, 0x04
