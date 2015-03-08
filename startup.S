@@ -815,6 +815,7 @@ flush_bitmap:
 	nop
 	ori	r4, r0, 0x01
 	/* FIXME: This only allows for fixed page sizes */
+still_flushing:
 	mul	r3, r3, r4
 	addik	r3, r3, BITMAPS_PHYS
 flush_bitmap_loop:
