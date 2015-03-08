@@ -434,8 +434,6 @@ next_bit:
 	nop
 clean_bitmap:	
 	/* found a match - so flush the bitmap */
-	/* cheat read r3 <- r5 off stack */
-	lw	r3, r1, r0
 	addik	r1, r1, -4
 	sw	r15, r1, r0
 	ori	r6, r0, flush_bitmap
