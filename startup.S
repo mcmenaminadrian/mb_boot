@@ -269,7 +269,7 @@ _interrupt_handler:
 	or	r9, r3, r0
 	/* set r3 to PTE number */
 	bsrli	r3, r3, PAGE_OFF
-	andi	r7, r7, 0xFFFFFFFF
+	ori	r7, r0, 0xFFFFFFFF
 	xori	r7, r7, PAGE1KMASK
 	and	r9, r9, r7
 	bsrli	r9, r9,	BYTE_INDEX
