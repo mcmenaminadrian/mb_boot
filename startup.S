@@ -256,6 +256,7 @@ exit:
 _interrupt_handler:
 /*	we get here with EAR holding a physical address	*/
 /*	we can from this straight to the bitmap		*/
+	msrset	r0, 0x200
 	addik	r1, r1, -4
 	sw	r3, r1, r0
 	addik	r1, r1, -4
@@ -330,6 +331,7 @@ end_interrupt:
 	lw	r9, r1, r0
 	addik	r1, r1, 0x04
 	lw	r3, r1, r0
+	msrclr	r0, 0x200
 	rtid	r14, 0x0
 	addik	r1, r1, 0x04
 
