@@ -277,9 +277,9 @@ _interrupt_handler:
 	bsrli	r9, r9, 0x03	/* byte offset */
 	ori	r6, r0, is_bitmap_marked 
 	brald	r15, r6
-	nop
+	or	r6, r3, r0
 	bneid	r3, end_interrupt
-	nop
+	or	r3, r6, r0
 	/* bit not marked - have to load in memory */
 	addik	r1, r1, -4
 	sw	r5, r1, r0
@@ -287,9 +287,6 @@ _interrupt_handler:
 	sw	r7, r1, r0
 	addik	r1, r1, -4
 	sw	r30, r1, r0
-	mfs	r3, rear
-	rsubi	r3, r3, FRAME_BASE
-	bsrli	r3, r3, PAGE_OFF
 	/* now read in the addresses from the PTE */
 	mts	rtlbx, r3
 	addik	r1, r1, -4
