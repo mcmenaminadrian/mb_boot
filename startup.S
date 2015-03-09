@@ -299,7 +299,7 @@ _interrupt_handler:
 	andi	r3, r3, PAGE1KMASK
 	andi	r6, r6, PAGE1KMASK
 	ori	r5, r5, 1
-	bslli	r5, r5, BYTE_INDEX + 3
+	bslli	r5, r9, BYTE_INDEX + 3
 	bslli	r7, r7, BYTE_INDEX
 	add	r5, r5, r7
 	ori	r7, r0, 0x01
