@@ -269,6 +269,7 @@ _interrupt_handler:
 	or	r9, r3, r0
 	/* set r3 to PTE number */
 	bsrli	r3, r3, PAGE_OFF
+	addik	r3, r3, MAXPINNED
 	ori	r7, r0, 0xFFFFFFFF
 	xori	r7, r7, PAGE1KMASK
 	and	r9, r9, r7
@@ -926,7 +927,6 @@ is_bitmap_marked:
 	sw	r4, r1, r0
 	addik	r1, r1, -4
 	sw	r5, r1, r0
-	addik	r3, r3, MAXPINNED 
 	ori	r4, r0, PAGE_SZ
 	bsrli	r4, r4, BYTE_INDEX + 3
 	bneid	r4, still_is_bitmap_marked
