@@ -37,8 +37,6 @@
 	.set CLOCK_SWEEP, 0x01
 	.set DUMMY_ZONE, 0xA000000
 	.set ENTRY_SIZE, 0x01
-	.set BITS16, 0x04
-	.set BITS32, 0x05
 	.set BYTES_8, 0x07
 	.set TO_BYTES_32, 0x02
 	.set BYTE_INDEX, 4 /* 4 for 16 bytes, 6 for 64 bytes etc */
@@ -267,7 +265,7 @@ _interrupt_handler:
 	addik	r1, r1, -4
 	sw	r6, r1, r0
 	mfs	r3, rear
-	rsubi	r3, r3, FRAME_BASE
+	addik	r3, r3, -FRAME_BASE
 	or	r9, r3, r0
 	/* set r3 to PTE number */
 	bsrli	r3, r3, PAGE_OFF
@@ -946,6 +944,6 @@ still_is_bitmap_marked:
 	lw	r4, r1, r0
 	rtsd	r15, 0x08
 	addik	r1, r1, 0x04
-/* end of bitmap 	
+/* end of is bitmap marked */	
 
 	
