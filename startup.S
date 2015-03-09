@@ -929,6 +929,7 @@ is_bitmap_marked:
 	sw	r4, r1, r0
 	addik	r1, r1, -4
 	sw	r5, r1, r0
+	addik	r3, r3, MAXPINNED 
 	ori	r4, r0, PAGE_SZ
 	bsrli	r4, r4, BYTE_INDEX + 3
 	bneid	r4, still_is_bitmap_marked
