@@ -583,10 +583,12 @@ loop_fix_up_tlb:
 	mts	rtlbx, r5
 	mfs	r3, rtlbhi
 	andi	r3, r3, VALID
-	bnei	r3, keep_fixing_tlb
+	bneid	r3, keep_fixing_tlb
+	nop
 	/* have an invalid TLB entry, so fix it up */
 	lw	r3, r1, r0
 	addik	r1, r1, 0x04
+	or	r5, r3, r0
 	muli	r3, r3, PTE_SIZE
 	addik	r3, r3, SECOND_MAP_PHYS
 	lw	r3, r3, r0
@@ -596,7 +598,7 @@ loop_fix_up_tlb:
 	ori	r4, r4, VALID|PAGE1K
 	ori	r19, r0, mark_bitmap
 	brald	r15, r19
-	nop
+	or	r3, r5, r0 /* reload PTE index */
 	rted	r17, 0x0
 	mts	rtlbhi, r4
 
