@@ -286,8 +286,6 @@ _interrupt_handler:
 	addik	r1, r1, -4
 	sw	r5, r1, r0
 	addik	r1, r1, -4
-	sw	r7, r1, r0
-	addik	r1, r1, -4
 	sw	r30, r1, r0
 	/* now read in the addresses from the PTE */
 	mts	rtlbx, r3
@@ -321,7 +319,11 @@ interrupt_loop_done:
 debug1:
 	ori	r3, r0, mark_bitmap
 	brald	r15, r3
-	nop 
+	nop
+	lw	r30, r1, r0
+	addik	r1, r1, 0x04
+	lw	r5, r1, r0
+	addik	r1, r1, 0x04
 end_interrupt:
 	lw	r6, r1, r0
 	addik	r1, r1, 0x04
