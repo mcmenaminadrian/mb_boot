@@ -316,10 +316,9 @@ interrupt_loop:
 	brid	interrupt_loop
 	nop
 interrupt_loop_done:
-	lw	r7, r1, r0
-	addik	r1, r1, 0x04
 	lw	r5, r1, r0 /* swap r3 with r5 */
 	addik	r1, r1, 0x04
+debug1:
 	ori	r3, r0, mark_bitmap
 	brald	r15, r3
 	nop 
@@ -596,6 +595,7 @@ loop_fix_up_tlb:
 	ori	r3, r3, EX|WR
 	mts	rtlblo, r3
 	ori	r4, r4, VALID|PAGE1K
+debug2:
 	ori	r19, r0, mark_bitmap
 	brald	r15, r19
 	or	r3, r5, r0 /* reload PTE index */
