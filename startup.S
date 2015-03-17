@@ -3,8 +3,8 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x0c
-	.set TLBCNT, 0x0c
+	.set PTECNT, 0x3e
+	.set TLBCNT, 0x3e
 	.set EX, 0x200
 	.set WR, 0x100
 	.set VALID, 0x40
@@ -31,13 +31,14 @@
 	.set MAXPINNED,	0x04	/* how many pinned TLBs/PTEs */
 	.set RNDSEED,	0x100
 	.set PTEMAXED,	0x104
-	.set HRDFAULT, 0x108
-	.set TTLFAULT, 0x10C
+	.set HARDFAULT, 0x108
+	.set SMALLFAULT, 0x10C
 	.set HARDONLY, 0x110
+	.set NULLFAULT, 0x114
 	.set CLOCK_SWEEP, 0x01
 	.set DUMMY_ZONE, 0xA000000
 	.set ENTRY_SIZE, 0x01
-	.set BYTE_INDEX, 8  /* 4 for 16 bytes, 6 for 64 bytes etc */
+	.set BYTE_INDEX, 0x04  /* 4 for 16 bytes, 6 for 64 bytes etc */
 
 	.macro switchex
 	addi	r5, r5, 0x01
@@ -91,8 +92,9 @@ _zeroouttlb:
 	bgtid	r3, _zeroouttlb	/* Uses delay slot */
 	addik	r3, r3, -1
 	swi	r0, r0, RNDSEED /* seed with zero */
-#	swi	r0, r0, TTLFAULT
-#	swi	r0, r0, HRDFAULT
+	swi	r0, r0, SMALLFAULT
+	swi	r0, r0, HARDFAULT
+	swi	r0, r0, NULLFAULT
 	ori	r3, r0, TLBCNT	/* test if PTE == TLB */
 	ori	r4, r0, PTECNT
 	rsub	r3, r3, r4
@@ -263,6 +265,10 @@ _interrupt_handler:
 	sw	r7, r1, r0
 	addik	r1, r1, -4
 	sw	r6, r1, r0
+increment_fault_count:
+	lwi	r3, r0, NULLFAULT
+	addik	r3, r3, 0x01
+	swi	r3, r0, NULLFAULT
 	mfs	r3, rear
 	addik	r3, r3, -FRAME_BASE
 	or	r9, r3, r0
@@ -314,7 +320,14 @@ interrupt_loop:
 interrupt_loop_done:
 	lw	r5, r1, r0 /* swap r3 with r5 */
 	addik	r1, r1, 0x04
-debug1:
+correctbitmap:
+	lwi	r3, r0, NULLFAULT
+	addik	r3, r3, -1
+	swi	r3, r0, NULLFAULT
+	lwi	r3, r0, SMALLFAULT
+	addik	r3, r3, 0x01
+	swi	r3, r0, SMALLFAULT
+	
 	ori	r3, r0, mark_bitmap
 	brald	r15, r3
 	nop
@@ -391,9 +404,9 @@ handle_inststore_error:
 
 handle_datatlb_miss:
 /* increase fault count */
-#	lwi	r3, r0, TTLFAULT
-#	addik	r3, r3, 0x1
-#	swi	r3, r0, TTLFAULT
+	lwi	r3, r0, HARDFAULT
+	addik	r3, r3, 0x1
+	swi	r3, r0, HARDFAULT
 /* mimic CLOCK */
 	ori	r3, r0, CLOCK_SWEEP 
 	ori	r19, r0, sweep_stacked 
@@ -535,10 +548,6 @@ PTE_entry_empty:
 	bslli	r8, r8, BYTE_INDEX
 
 	/* start load */
-increment_hard_fault_count:
-#	lwi	r7, r0, HRDFAULT
-#	addik	r7, r7, 0x01
-#	swi	r7, r0, HRDFAULT
 	
 	mul	r6, r9, r8
 	ori	r10, r0, DUMMY_ZONE
