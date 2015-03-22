@@ -3,8 +3,8 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x3e
-	.set TLBCNT, 0x3e
+	.set PTECNT, 0x06
+	.set TLBCNT, 0x06
 	.set EX, 0x200
 	.set WR, 0x100
 	.set VALID, 0x40
@@ -267,14 +267,14 @@ _interrupt_handler:
 	sw	r6, r1, r0
 increment_fault_count:
 	lwi	r3, r0, NULLFAULT
-	addik	r3, r3, 0x01
+	addi	r3, r3, 0x01
 	swi	r3, r0, NULLFAULT
 	mfs	r3, rear
-	addik	r3, r3, -FRAME_BASE
+	addi	r3, r3, -FRAME_BASE
 	or	r9, r3, r0
 	/* set r3 to PTE number */
 	bsrli	r3, r3, PAGE_OFF
-	addik	r3, r3, MAXPINNED
+	addi	r3, r3, MAXPINNED
 	ori	r7, r0, 0xFFFFFFFF
 	xori	r7, r7, PAGE1KMASK
 	and	r9, r9, r7
@@ -291,6 +291,8 @@ increment_fault_count:
 	sw	r5, r1, r0
 	addik	r1, r1, -4
 	sw	r30, r1, r0
+	addik	r1, r1, -4
+	sw	r7, r1, r0
 	/* now read in the addresses from the PTE */
 	mts	rtlbx, r3
 	addik	r1, r1, -4
@@ -320,12 +322,14 @@ interrupt_loop:
 interrupt_loop_done:
 	lw	r5, r1, r0 /* swap r3 with r5 */
 	addik	r1, r1, 0x04
+	lw	r7, r1, r0
+	addik	r1, r1, 0x04
 correctbitmap:
 	lwi	r3, r0, NULLFAULT
-	addik	r3, r3, -1
+	addi	r3, r3, -1
 	swi	r3, r0, NULLFAULT
 	lwi	r3, r0, SMALLFAULT
-	addik	r3, r3, 0x01
+	addi	r3, r3, 0x01
 	swi	r3, r0, SMALLFAULT
 	
 	ori	r3, r0, mark_bitmap
@@ -405,7 +409,7 @@ handle_inststore_error:
 handle_datatlb_miss:
 /* increase fault count */
 	lwi	r3, r0, HARDFAULT
-	addik	r3, r3, 0x1
+	addi	r3, r3, 0x1
 	swi	r3, r0, HARDFAULT
 /* mimic CLOCK */
 	ori	r3, r0, CLOCK_SWEEP 
