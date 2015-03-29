@@ -3,8 +3,8 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x20
-	.set TLBCNT, 0x2
+	.set PTECNT, 0x40
+	.set TLBCNT, 0x40
 	.set EX, 0x200
 	.set WR, 0x100
 	.set VALID, 0x40
@@ -38,7 +38,7 @@
 	.set CLOCK_SWEEP, 0x01
 	.set DUMMY_ZONE, 0xA000000
 	.set ENTRY_SIZE, 0x01
-	.set BYTE_INDEX, 0x06  /* 4 for 16 bytes, 6 for 64 bytes etc */
+	.set BYTE_INDEX, 0x04  /* 4 for 16 bytes, 6 for 64 bytes etc */
 
 	.macro switchex
 	addi	r5, r5, 0x01
