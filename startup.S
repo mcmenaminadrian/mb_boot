@@ -3,8 +3,8 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x40
-	.set TLBCNT, 0x40
+	.set PTECNT, 0x20
+	.set TLBCNT, 0x20
 	.set EX, 0x200
 	.set WR, 0x100
 	.set VALID, 0x40
@@ -275,6 +275,28 @@ increment_fault_count:
 	/* set r3 to PTE number */
 	bsrli	r3, r3, PAGE_OFF
 	addi	r3, r3, MAXPINNED
+update_lru:
+	addik	r1, r1, -4
+	sw	r3, r1, r0
+	addik	r1, r1, -4
+	sw	r19, r1, r0
+	addik	r1, r1, -4
+	sw	r15, r1, r0
+mark_in_interrupt:
+	ori	r19, r0, get_entry_for_match
+	brald	r15, r19
+	nop
+	ori	r19, r0, mark_stacked
+	brald	r15, r19
+	nop
+	/* unwind stack */
+	lw	r15, r1, r0
+	addik	r1, r1, 0x04
+	lw	r19, r1, r0
+	addik	r1, r1, 0x04
+	lw	r3, r1, r0
+	addik	r1, r1, 0x04
+lru_over:
 	ori	r7, r0, 0xFFFFFFFF
 	xori	r7, r7, PAGE1KMASK
 	and	r9, r9, r7
@@ -323,23 +345,6 @@ interrupt_loop_done:
 	lw	r5, r1, r0 /* swap r3 with r5 */
 	addik	r1, r1, 0x04
 	lw	r7, r1, r0
-	addik	r1, r1, 0x04
-	addik	r1, r1, -4
-	sw	r19, r1, r0
-	addik	r1, r1, -4
-	sw	r15, r1, r0
-mark_in_interrupt:
-	or 	r3, r5, r0
-	ori	r19, r0, get_entry_for_match
-	brald	r15, r19
-	nop
-	ori	r19, r0, mark_stacked
-	brald	r15, r19
-	nop
-	/* unwind stack */
-	lw	r15, r1, r0
-	addik	r1, r1, 0x04
-	lw	r19, r1, r0
 	addik	r1, r1, 0x04
 correctbitmap:
 	lwi	r3, r0, NULLFAULT
