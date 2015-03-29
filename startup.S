@@ -3,8 +3,8 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x06
-	.set TLBCNT, 0x06
+	.set PTECNT, 0x20
+	.set TLBCNT, 0x2
 	.set EX, 0x200
 	.set WR, 0x100
 	.set VALID, 0x40
@@ -38,7 +38,7 @@
 	.set CLOCK_SWEEP, 0x01
 	.set DUMMY_ZONE, 0xA000000
 	.set ENTRY_SIZE, 0x01
-	.set BYTE_INDEX, 0x04  /* 4 for 16 bytes, 6 for 64 bytes etc */
+	.set BYTE_INDEX, 0x06  /* 4 for 16 bytes, 6 for 64 bytes etc */
 
 	.macro switchex
 	addi	r5, r5, 0x01
@@ -324,6 +324,23 @@ interrupt_loop_done:
 	addik	r1, r1, 0x04
 	lw	r7, r1, r0
 	addik	r1, r1, 0x04
+	addik	r1, r1, -4
+	sw	r19, r1, r0
+	addik	r1, r1, -4
+	sw	r15, r1, r0
+mark_in_interrupt:
+	or 	r3, r5, r0
+	ori	r19, r0, get_entry_for_match
+	brald	r15, r19
+	nop
+	ori	r19, r0, mark_stacked
+	brald	r15, r19
+	nop
+	/* unwind stack */
+	lw	r15, r1, r0
+	addik	r1, r1, 0x04
+	lw	r19, r1, r0
+	addik	r1, r1, 0x04
 correctbitmap:
 	lwi	r3, r0, NULLFAULT
 	addi	r3, r3, -1
@@ -417,8 +434,8 @@ handle_datatlb_miss:
 	brald	r15, r19
 	nop
 	/* can we have a soft fault? */
-	lwi	r3, r0, HARDONLY
-	beqid	r3, end_of_PTE_look
+#	lwi	r3, r0, HARDONLY     //we are always going to try
+#	beqid	r3, end_of_PTE_look
 
 	/* now check if PTE addresses match */
 	ori	r3, r0, MAXPINNED	/* r3 is index to PTE */
@@ -856,6 +873,12 @@ still_sweeping_stack:
 get_entry_for_match:
 	/* r3 has the index for the PTE */
 	/* return with r3 = stack entry that matches */
+	addik	r1, r1, -4
+	sw	r4, r1, r0
+	addik	r1, r1, -4
+	sw	r5, r1, r0
+	addik	r1, r1, -4
+	sw	r6, r1, r0
 	ori	r4, r0, STACK_BOTTOM
 	or	r5, r0, r0
 loop_getting:
@@ -865,8 +888,13 @@ loop_getting:
 	bnei	r6, keep_getting
 	rsub	r5, r5, r0
 	or	r3, r5, r0
+	lw	r6, r1, r0
+	addik	r1, r1, 0x04
+	lw	r5, r1, r0
+	addik	r1, r1, 0x04
+	lw	r4, r1, r0
 	rtsd	r15, 0x08
-	nop
+	addik	r1, r1, 0x04
 keep_getting:
 	addik	r5, r5, -1
 	brai	loop_getting
