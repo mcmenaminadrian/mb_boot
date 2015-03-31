@@ -3,8 +3,8 @@
 	Licensed under GPL v3
 */
 
-	.set PTECNT, 0x40
-	.set TLBCNT, 0x40
+	.set PTECNT, 0x10
+	.set TLBCNT, 0x10
 	.set EX, 0x200
 	.set WR, 0x100
 	.set VALID, 0x40
@@ -27,7 +27,7 @@
 	.set FRAME_BASE, 0x8000000
 	.set VM_ON, 0x2502
 	.set PAGE_SZ, 0x400	/* 0x1000 for 4096, 0x400 for 1024 */
-	.set PAGE_OFF, 0x0A	/* 0x0A for 1k, 0x0C for 4k */
+	.set PAGE_OFF, 0x0a	/* 0x0A for 1k, 0x0C for 4k */
 	.set MAXPINNED,	0x04	/* how many pinned TLBs/PTEs */
 	.set RNDSEED,	0x100
 	.set PTEMAXED,	0x104
@@ -38,7 +38,7 @@
 	.set CLOCK_SWEEP, 0x01
 	.set DUMMY_ZONE, 0xA000000
 	.set ENTRY_SIZE, 0x01
-	.set BYTE_INDEX, 0x04  /* 4 for 16 bytes, 6 for 64 bytes etc */
+	.set BYTE_INDEX, 0x06  /* 4 for 16 bytes, 6 for 64 bytes etc */
 
 	.macro switchex
 	addi	r5, r5, 0x01
@@ -92,9 +92,9 @@ _zeroouttlb:
 	bgtid	r3, _zeroouttlb	/* Uses delay slot */
 	addik	r3, r3, -1
 	swi	r0, r0, RNDSEED /* seed with zero */
-	swi	r0, r0, SMALLFAULT
-	swi	r0, r0, HARDFAULT
-	swi	r0, r0, NULLFAULT
+#	swi	r0, r0, SMALLFAULT
+#	swi	r0, r0, HARDFAULT
+#	swi	r0, r0, NULLFAULT
 	ori	r3, r0, TLBCNT	/* test if PTE == TLB */
 	ori	r4, r0, PTECNT
 	rsub	r3, r3, r4
@@ -266,9 +266,9 @@ _interrupt_handler:
 	addik	r1, r1, -4
 	sw	r6, r1, r0
 increment_fault_count:
-	lwi	r3, r0, NULLFAULT
-	addi	r3, r3, 0x01
-	swi	r3, r0, NULLFAULT
+#	lwi	r3, r0, NULLFAULT
+#	addi	r3, r3, 0x01
+#	swi	r3, r0, NULLFAULT
 	mfs	r3, rear
 	addi	r3, r3, -FRAME_BASE
 	or	r9, r3, r0
@@ -342,12 +342,12 @@ mark_in_interrupt:
 	lw	r19, r1, r0
 	addik	r1, r1, 0x04
 correctbitmap:
-	lwi	r3, r0, NULLFAULT
-	addi	r3, r3, -1
-	swi	r3, r0, NULLFAULT
-	lwi	r3, r0, SMALLFAULT
-	addi	r3, r3, 0x01
-	swi	r3, r0, SMALLFAULT
+#	lwi	r3, r0, NULLFAULT
+#	addi	r3, r3, -1
+#	swi	r3, r0, NULLFAULT
+#	lwi	r3, r0, SMALLFAULT
+#	addi	r3, r3, 0x01
+#	swi	r3, r0, SMALLFAULT
 	
 	ori	r3, r0, mark_bitmap
 	brald	r15, r3
@@ -425,9 +425,9 @@ handle_inststore_error:
 
 handle_datatlb_miss:
 /* increase fault count */
-	lwi	r3, r0, HARDFAULT
-	addi	r3, r3, 0x1
-	swi	r3, r0, HARDFAULT
+#	lwi	r3, r0, HARDFAULT
+#	addi	r3, r3, 0x1
+#	swi	r3, r0, HARDFAULT
 /* mimic CLOCK */
 	ori	r3, r0, CLOCK_SWEEP 
 	ori	r19, r0, sweep_stacked 
